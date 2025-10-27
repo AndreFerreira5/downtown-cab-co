@@ -1,3 +1,7 @@
 [core]
     analytics = false
     autostage = true
+    remote = storage
+['remote "storage"']
+    url = gdrive://15WfAnVHQRyILJHkFMMhrlEuB5oZAHaVz
+    gdrive_acknowledge_abuse = true
