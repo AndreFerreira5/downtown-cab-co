@@ -4,4 +4,7 @@ version = "0.1.0"
 description = "API that serves trained models"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.120.0",
+    "uvicorn>=0.38.0",
+]

@@ -7,6 +7,6 @@ COPY src/api /app/src/api
 
 RUN uv sync
 
-ENV MLFLOW_TRACKING_URI=http://0.0.0.0:5050
+# ENV MLFLOW_TRACKING_URI=http://0.0.0.0:5050 # TBD
 
-CMD ["uv", "run", "src/serving/app.py"]
+CMD ["uv", "run", "src/api/app.py"]
