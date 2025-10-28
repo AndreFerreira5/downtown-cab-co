@@ -83,7 +83,7 @@ jobs:
               -p 5050:5050 \
               -v ~/mlruns:/mlflow/mlruns \
               -v ~/mlflow_data:/mlflow \
-              -e BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+              -e BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db \
               ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
             
             echo "Deployment successful!"
