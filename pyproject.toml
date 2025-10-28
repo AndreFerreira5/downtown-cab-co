@@ -8,3 +8,9 @@ dependencies = [
     "dvc[gdrive,s3]>=3.63.0",
     "mlflow>=3.5.1",
 ]
+
+[tool.uv.workspace]
+members = [
+    "src/training",
+    "src/serving",
+]
