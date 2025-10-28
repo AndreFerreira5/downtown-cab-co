@@ -11,6 +11,5 @@ dependencies = [
 
 [tool.uv.workspace]
 members = [
-    "src/training",
-    "src/serving",
+    "src/api",
 ]
