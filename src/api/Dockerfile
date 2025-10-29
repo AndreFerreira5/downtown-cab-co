@@ -3,10 +3,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+
 COPY src/api /app/src/api
 
-RUN uv sync
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
-ENV MLFLOW_TRACKING_URI=http://0.0.0.0:5050
-
-CMD ["uv", "run", "src/serving/app.py"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8080"]

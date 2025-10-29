@@ -7,9 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "dvc[gdrive,s3]>=3.63.0",
     "mlflow>=3.5.1",
+    "fastapi>=0.120.0",
+    "uvicorn>=0.38.0",
 ]
 
-[tool.uv.workspace]
-members = [
-    "src/api",
-]
