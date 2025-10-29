@@ -68,7 +68,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: SSH to MLFLow Server and Deploy
+      - name: Deploy over SSH
         env:
           IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
         run: |
