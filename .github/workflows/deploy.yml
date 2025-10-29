@@ -61,13 +61,22 @@ jobs:
           username: ${{ secrets.OVPN_USERNAME }}
           password: ${{ secrets.OVPN_PASSWORD }}
 
-      - name: SSH to MLFLow Deployment Server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}
-          username: ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}
-          key: ${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}
-          script: |
+      - name: Setup SSH
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.TRAINING_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: SSH to MLFLow Server and Deploy
+        env:
+          IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
+              bash -s << 'ENDSSH'
+            set -e
+          
             echo "Deploying to MLFlow Deploy Server..."
             
             # log in to registry
@@ -76,8 +85,8 @@ jobs:
             
             # pull container and deploy
             docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
-            docker stop mlflow-server || true
-            docker rm mlflow-server || true
+            docker stop mlflow-server 2>/dev/null || true
+            docker rm mlflow-server 2>/dev/null || true
             docker run -d --name mlflow-server \
               --restart unless-stopped \
               -p 5050:5050 \
@@ -87,3 +96,5 @@ jobs:
               ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
             
             echo "Deployment successful!"
+          
+          ENDSSH
