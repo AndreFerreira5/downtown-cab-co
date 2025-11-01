@@ -1,4 +1,4 @@
-[project]
+    [project]
 name = "models_server"
 version = "0.1.0"
 description = "API that serves trained models"
@@ -8,4 +8,6 @@ dependencies = [
     "fastapi>=0.120.0",
     "mlflow>=3.5.1",
     "uvicorn>=0.38.0",
+    "pydantic>=2",
+    "pandas>=2.2",
 ]
