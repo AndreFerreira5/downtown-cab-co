@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import pandas as pd
 from .train import run_training
 
-from logging_config import configure_logging
+from .logging_config import configure_logging
 
 # TODO this is while traininng algorithm isnt implemented
 try:

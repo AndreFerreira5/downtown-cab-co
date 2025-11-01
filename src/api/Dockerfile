@@ -3,14 +3,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+
 COPY src/api /app/src/api
 
-WORKDIR /app/src/api
-
-RUN uv sync --no-dev
-
-ENV PATH="/app/src/api/.venv/bin:$PATH"
-ENV PYTHONPATH="/app:${PYTHONPATH}"
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 
