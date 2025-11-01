@@ -7,5 +7,32 @@ services:
     ports:
       - "5050:5050"
     volumes:
+      # Persist experiment metadata and artifacts on host
       - ./mlruns:/mlflow/mlruns
       - ./mlflow.db:/mlflow/mlflow.db
+    networks:
+      - mlops-net
+
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: taxi-api
+    env_file:
+      - src/api/.env
+    environment:
+      # as indicated in tutorial 5: inside Docker, flask_app CANNOT reach MLflow at localhost
+      # it must reach it by service name on the same network
+      - MLFLOW_TRACKING_URI=http://mlflow:5050
+      - MODEL_NAME=nyc_taxi_duration
+      - MODEL_ALIAS=production
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mlflow
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+    driver: bridge
