@@ -33,6 +33,6 @@ services:
     networks:
       - mlops-net
 
-  networks:
-    mlops-net:
-      driver: bridge
+networks:
+  mlops-net:
+    driver: bridge
