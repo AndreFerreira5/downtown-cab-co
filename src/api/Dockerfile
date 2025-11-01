@@ -7,7 +7,7 @@ COPY src/api /app/src/api
 
 WORKDIR /app/src/api
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 ENV PATH="/app/src/api/.venv/bin:$PATH"
 ENV PYTHONPATH="/app:${PYTHONPATH}"
