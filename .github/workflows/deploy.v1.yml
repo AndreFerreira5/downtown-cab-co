@@ -126,10 +126,8 @@ jobs:
       - name: Setup SSH
         shell: bash
         run: |
-          if [ ! -d "$HOME/.ssh" ]; then
-            mkdir -p "$HOME/.ssh"
-            chmod 700 "$HOME/.ssh"
-          fi
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
           echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
@@ -156,16 +154,17 @@ jobs:
           
             echo "Deploying to MLFlow Deploy Server..."
             
-            if [ ! -f .env ]; then
-              echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
-              echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
-            fi
+            cd ~
+            rm -f .env
+            echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
+            echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
             
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker-compose down
+            docker-compose pull
+            docker compose down || true
             docker-compose -f mlflow.compose.v1.yml up -d
             
             echo "Deployment successful!"
@@ -198,10 +197,8 @@ jobs:
       - name: Setup SSH
         shell: bash
         run: |
-          if [ ! -d "$HOME/.ssh" ]; then
-            mkdir -p "$HOME/.ssh"
-            chmod 700 "$HOME/.ssh"
-          fi
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
           echo "${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
@@ -228,17 +225,18 @@ jobs:
           
             echo "Deploying to API Deploy Server..."
             
-            if [ ! -f .env ]; then
-              echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
-              echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
-            fi
+            cd ~
+            rm -f .env
+            echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
+            echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
             
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker compose down
-            docker compose up -f inference.compose.v1.yml -d
+            docker-compose pull
+            docker compose down || true
+            docker compose -f inference.compose.v1.yml up -d
             
             echo "Deployment successful!"
           
