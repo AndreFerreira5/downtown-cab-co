@@ -645,6 +645,7 @@ dependencies = [
     { name = "dvc", extra = ["gdrive", "s3"] },
     { name = "fastapi" },
     { name = "mlflow" },
+    { name = "river" },
     { name = "uvicorn" },
 ]
 
@@ -653,6 +654,7 @@ requires-dist = [
     { name = "dvc", extras = ["gdrive", "s3"], specifier = ">=3.63.0" },
     { name = "fastapi", specifier = ">=0.120.0" },
     { name = "mlflow", specifier = ">=3.5.1" },
+    { name = "river", specifier = ">=0.22.0" },
     { name = "uvicorn", specifier = ">=0.38.0" },
 ]
 
@@ -2557,6 +2559,28 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fb/d2/8920e102050a0de7bfabeb4c4614a49248cf8d5d7a8d01885fbb24dc767a/rich-14.2.0.tar.gz", hash = "sha256:73ff50c7c0c1c77c8243079283f4edb376f0f6442433aecb8ce7e6d0b92d1fe4", size = 219990, upload-time = "2025-10-09T14:16:53.064Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/25/7a/b0178788f8dc6cafce37a212c99565fa1fe7872c70c6c9c1e1a372d9d88f/rich-14.2.0-py3-none-any.whl", hash = "sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd", size = 243393, upload-time = "2025-10-09T14:16:51.245Z" },
+]
+
+[[package]]
+name = "river"
+version = "0.22.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/31/23/4e4d1c99e38767c0afb4d6bcbe9a36157bf365578320d1b3356054e1fc79/river-0.22.0.tar.gz", hash = "sha256:8b06840e0d832dbd1064145e56e3f75492402716f5eb733753da3099194a3a68", size = 1404781, upload-time = "2024-11-25T23:29:10.012Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/15/dbe26ee8e016ce877087f4348426cd49d3ae538090213a66d3f29e1d7582/river-0.22.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:1adc5f71241cabe7effff41088b9360798bb405b0c5c47f899b6b324512c7424", size = 2555531, upload-time = "2024-11-25T23:28:56.762Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/fa/167c75c5cdb4684e72026ea31587c751670665b4921ff93a4f7ec25a7430/river-0.22.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:5615fef7e08985b7e041ee8d3913fe22364ffe3270df63a7a76da564376a0375", size = 2554623, upload-time = "2024-11-25T23:28:58.154Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/54/d0adae3fefdb11df39df771c5688e94e0b1992b7b754a6abc1e205da41f2/river-0.22.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:016de2e7e88ef33b4c4c802c96260ad0f1891cb8da8a501ce7c61995d36f0001", size = 3104025, upload-time = "2024-11-25T23:28:59.619Z" },
+    { url = "https://files.pythonhosted.org/packages/77/96/f14171c56d9d9fd169754dc27bfd2d311833e312b07292054a087afdd3d6/river-0.22.0-cp313-cp313-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:f7cdc40b2b0e47f22411e0cf81ef08f0938f804cd32b6e3544ccf61b59fba995", size = 3065095, upload-time = "2024-11-25T23:29:00.976Z" },
+    { url = "https://files.pythonhosted.org/packages/91/7b/aa227d434a6ba7a8d5ceeebfaa88d784254c43e918128ab4fbfde8a3f722/river-0.22.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f830f6459db13743fb20fcce83a73f9172e5bea5208d64b826e318f19ff946a7", size = 3134699, upload-time = "2024-11-25T23:29:02.375Z" },
+    { url = "https://files.pythonhosted.org/packages/02/d5/072456ae858077ce9b7f777cc449f1f2b4b82f8da9004f76b6d13d5065e8/river-0.22.0-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:3484021d0047c523ddc7e54b3daa5d2460920765f0f994398bc590360be14d94", size = 3620851, upload-time = "2024-11-25T23:29:03.799Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/1a/ea573bfdadeeb57b9c680ea93de9dacaec6401a5d6c91c21697ea8527927/river-0.22.0-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:8674fdd8c72cdf69d0a334bc1f93fda7e069ba9890562b0fd8095b180198fdc0", size = 3663777, upload-time = "2024-11-25T23:29:05.181Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/01/b8a5953def38d3aacfc56804d9daf37636df3b50b7c8156d562fe3f360cc/river-0.22.0-cp313-cp313-win32.whl", hash = "sha256:fa7ad2edbedd711fca0e34950ee6fe5140fbf83525778818016c1646b21ca3e8", size = 2193317, upload-time = "2024-11-25T23:29:06.584Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/d0/02c1bcda0bb48748cd7cf64ae34dd38a2062c765876e3794e2a07eac8e82/river-0.22.0-cp313-cp313-win_amd64.whl", hash = "sha256:467b4120e8e36d375fcc4a01ce380e1b5effc63a9414d723cabaf393d9bb02c4", size = 2300410, upload-time = "2024-11-25T23:29:07.99Z" },
 ]
 
 [[package]]
