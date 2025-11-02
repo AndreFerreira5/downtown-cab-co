@@ -9,6 +9,7 @@ dependencies = [
     "mlflow>=3.5.1",
     "fastapi>=0.120.0",
     "uvicorn>=0.38.0",
+    "river>=0.22.0",
 ]
 
 [tool.uv.workspace]
