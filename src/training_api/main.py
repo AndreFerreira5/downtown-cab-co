@@ -9,7 +9,8 @@ import mlflow.pyfunc
 from typing import List, Optional
 from pydantic import BaseModel
 import pandas as pd
-from .train import run_training
+from train import run_training
+from config import configure_mlflow
 
 from .logging_config import configure_logging
 
@@ -24,14 +25,10 @@ except:
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# ----- Config -----
 MODEL_NAME = os.getenv("MODEL_NAME", "nyc_taxi_duration")
 MODEL_ALIAS = os.getenv("MODEL_ALIAS", "production")
-MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")  # its mlflow and not localhost because the
-# container will be named mlflos
-os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"  # allow container->container calls (per tutorial)
-
-mlflow.set_tracking_uri(MLFLOW_URI)
+MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")
+configure_mlflow()
 
 app = FastAPI(title="NYC Taxi Baseline API", version="0.1.0")
 
@@ -55,8 +52,7 @@ class PredictRequest(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    # Path to a CSV/Parquet with (at least) pickup_datetime, dropoff_datetime, trip_distance
-    data_path: str
+    #data_path: str
     experiment_name: Optional[str] = "nyc_taxi_baseline"
 
 
@@ -75,7 +71,7 @@ def train(req: TrainRequest):
     Registers best run as a model and sets alias to 'production'.
     """
     info = run_training(
-        data_path=req.data_path,
+        #data_path=req.data_path,
         experiment_name=req.experiment_name,
         model_name=MODEL_NAME,
         alias=MODEL_ALIAS,
