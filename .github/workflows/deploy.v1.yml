@@ -103,6 +103,9 @@ jobs:
 
   deploy-mlflow-and-training-api:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     needs:
       - build-mlflow-container
       - build-training-api-container
@@ -180,6 +183,9 @@ jobs:
 
   deploy-inference-api:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     needs: build-inference-api-container
     steps:
       - uses: actions/checkout@v5
