@@ -11,3 +11,8 @@ dependencies = [
     "uvicorn>=0.38.0",
 ]
 
+[tool.uv.workspace]
+members = [
+    "src/inference_api",
+]
+

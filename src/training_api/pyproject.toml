@@ -1,0 +1,13 @@
+[project]
+name = "training_api"
+version = "0.1.0"
+description = "API that trains models using mlflow"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.120.0",
+    "mlflow>=3.5.1",
+    "uvicorn>=0.38.0",
+    "pydantic>=2",
+    "pandas>=2.2",
+]

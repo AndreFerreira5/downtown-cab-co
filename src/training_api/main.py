@@ -17,7 +17,7 @@ from .logging_config import configure_logging
 try:
     from .train import run_training  # type: ignore
     TRAIN_AVAILABLE = True
-except Exception:
+except:
     TRAIN_AVAILABLE = False
 
 # configure logging globally
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 MODEL_NAME = os.getenv("MODEL_NAME", "nyc_taxi_duration")
 MODEL_ALIAS = os.getenv("MODEL_ALIAS", "production")
 MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")  # its mlflow and not localhost because the
-                                                                     # container will be named mlflos
+# container will be named mlflos
 os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"  # allow container->container calls (per tutorial)
 
 mlflow.set_tracking_uri(MLFLOW_URI)
@@ -37,6 +37,7 @@ app = FastAPI(title="NYC Taxi Baseline API", version="0.1.0")
 
 # Keep the model in memory (reloaded on /reload or after /train)
 app.state.model = None
+
 
 def load_model_into_app():
     try:
@@ -66,7 +67,6 @@ def health():
 
 @app.post("/train")
 def train(req: TrainRequest):
-
     if not TRAIN_AVAILABLE:
         raise HTTPException(status_code=501, detail="Training endpoint is disabled until an algorithm is chosen.")
 

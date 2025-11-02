@@ -1,13 +1,11 @@
-    [project]
-name = "models_server"
+[project]
+name = "inference-api"
 version = "0.1.0"
-description = "API that serves trained models"
+description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.120.0",
     "mlflow>=3.5.1",
     "uvicorn>=0.38.0",
-    "pydantic>=2",
-    "pandas>=2.2",
 ]

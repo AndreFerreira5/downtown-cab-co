@@ -13,13 +13,13 @@ services:
     networks:
       - mlops-net
 
-  api:
+  training_api:
     build:
       context: .
-      dockerfile: src/api/Dockerfile
+      dockerfile: src/training_api/Dockerfile
     container_name: taxi-api
     env_file:
-      - src/api/.env
+      - src/training_api/.env
     environment:
       # as indicated in tutorial 5: inside Docker, flask_app CANNOT reach MLflow at localhost
       # it must reach it by service name on the same network
