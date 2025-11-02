@@ -9,8 +9,8 @@ import mlflow.pyfunc
 from typing import List, Optional
 from pydantic import BaseModel
 import pandas as pd
-from train import run_training
-from config import configure_mlflow
+from .train import run_training
+from .config import configure_mlflow
 
 from .logging_config import configure_logging
 
