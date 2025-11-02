@@ -1,0 +1,295 @@
+name: Deploy (Docker CLI)
+
+on:
+  #push:
+  #  branches: [main]
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+
+jobs:
+  build-mlflow-container:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push mlflow-server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/mlflow-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:${{ github.sha }}
+            
+
+  build-training-api-container:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push training api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/training_api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training-api:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training-api:${{ github.sha }}
+            
+
+  build-inference-api-container:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push inference api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/inference_api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:${{ github.sha }}
+
+
+  deploy-mlflow:
+    runs-on: ubuntu-latest
+    needs: build-mlflow-container
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Install OpenVPN
+        run: |
+          sudo apt update
+          sudo apt install -y openvpn openvpn-systemd-resolved
+          
+      - name: Connect to VPN
+        uses: "kota65535/github-openvpn-connect-action@v2"
+        with:
+          config_file: .github/workflows/client.ovpn
+          username: ${{ secrets.OVPN_USERNAME }}
+          password: ${{ secrets.OVPN_PASSWORD }}
+
+      - name: Setup SSH
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
+          echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
+              bash -s << 'ENDSSH'
+            set -e
+          
+            echo "Deploying to MLFlow Deploy Server..."
+            
+            # log in to registry
+            echo ${{ secrets.GITHUB_TOKEN }} | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # pull container and deploy
+            docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
+            docker stop mlflow-server 2>/dev/null || true
+            docker rm mlflow-server 2>/dev/null || true
+            docker run -d --name mlflow-server \
+              --restart unless-stopped \
+              -p 5050:5050 \
+              -v ~/mlruns:/mlflow/mlruns \
+              -v ~/mlflow_data:/mlflow \
+              -e BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db \
+              ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
+            
+            echo "Deployment successful!"
+          
+          ENDSSH
+
+
+  deploy-training-api:
+    runs-on: ubuntu-latest
+    needs: build-training-api-container
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Install OpenVPN
+        run: |
+          sudo apt update
+          sudo apt install -y openvpn openvpn-systemd-resolved
+
+      - name: Connect to VPN
+        uses: "kota65535/github-openvpn-connect-action@v2"
+        with:
+          config_file: .github/workflows/client.ovpn
+          username: ${{ secrets.OVPN_USERNAME }}
+          password: ${{ secrets.OVPN_PASSWORD }}
+
+      - name: Setup SSH
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
+          echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
+              bash -s << 'ENDSSH'
+            set -e
+          
+            echo "Deploying to Training API to MLFlow Deploy Server..."
+            
+            # log in to registry
+            echo ${{ secrets.GITHUB_TOKEN }} | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # pull container and deploy
+            docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training-api:latest
+            docker stop api 2>/dev/null || true
+            docker rm api 2>/dev/null || true
+            docker run -d --name api \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }} \
+              -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+              ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-api:latest
+            
+            echo "Deployment successful!"
+          
+          ENDSSH
+
+
+  deploy-inference-api:
+    runs-on: ubuntu-latest
+    needs: build-inference-api-container
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Install OpenVPN
+        run: |
+          sudo apt update
+          sudo apt install -y openvpn openvpn-systemd-resolved
+
+      - name: Connect to VPN
+        uses: "kota65535/github-openvpn-connect-action@v2"
+        with:
+          config_file: .github/workflows/client.ovpn
+          username: ${{ secrets.OVPN_USERNAME }}
+          password: ${{ secrets.OVPN_PASSWORD }}
+
+      - name: Setup SSH
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
+          echo "${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.API_DEPLOY_SERVER_USER }}@${{ secrets.API_DEPLOY_SERVER_HOST }} \
+              bash -s << 'ENDSSH'
+            set -e
+          
+            echo "Deploying to API Deploy Server..."
+            
+            # log in to registry
+            echo ${{ secrets.GITHUB_TOKEN }} | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # pull container and deploy
+            docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
+            docker stop api 2>/dev/null || true
+            docker rm api 2>/dev/null || true
+            docker run -d --name api \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }} \
+              -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+              ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-api:latest
+            
+            echo "Deployment successful!"
+          
+          ENDSSH

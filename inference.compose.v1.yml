@@ -1,0 +1,12 @@
+services:
+  training_api:
+    image: ghcr.io/andreferreira5/downtown-cab-co-inference-api:latest
+    container_name: inference-api
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      - MODEL_NAME=nyc_taxi_duration
+      - MODEL_ALIAS=production
+    ports:
+      - "8080:8080"
