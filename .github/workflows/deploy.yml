@@ -186,9 +186,9 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy over SSH
         env:
@@ -196,11 +196,11 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
-              ${{ secrets.API_DEPLOY_SERVER_USER }}@${{ secrets.API_DEPLOY_SERVER_HOST }} \
+              ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
               bash -s << 'ENDSSH'
             set -e
           
-            echo "Deploying to API Deploy Server..."
+            echo "Deploying to Training API to MLFlow Deploy Server..."
             
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
