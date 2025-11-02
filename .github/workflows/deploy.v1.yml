@@ -155,7 +155,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
-              bash -s << 'ENDSSH'
+              bash -s << ENDSSH
             set -e
           
             echo "Deploying to MLFlow Deploy Server..."
@@ -230,7 +230,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               ${{ secrets.API_DEPLOY_SERVER_USER }}@${{ secrets.API_DEPLOY_SERVER_HOST }} \
-              bash -s << 'ENDSSH'
+              bash -s << ENDSSH
             set -e
           
             echo "Deploying to API Deploy Server..."

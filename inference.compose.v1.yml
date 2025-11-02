@@ -1,5 +1,5 @@
 services:
-  training_api:
+  inference_api:
     image: ghcr.io/andreferreira5/downtown-cab-co-inference-api:latest
     container_name: inference-api
     restart: on-failure
