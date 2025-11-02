@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 # ----- Config -----
 MODEL_NAME = os.getenv("MODEL_NAME", "nyc_taxi_duration")
 MODEL_ALIAS = os.getenv("MODEL_ALIAS", "production")
-MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")  # its mlflow and not localhost because the
-# container will be named mlflos
-os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"  # allow container->container calls (per tutorial)
+MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")
+os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"
 
 mlflow.set_tracking_uri(MLFLOW_URI)
 

@@ -1,0 +1,13 @@
+services:
+  training_api:
+    build:
+      context: .
+      dockerfile: src/inference_api/Dockerfile
+    container_name: taxi-inference-api
+    env_file:
+      - .env
+    environment:
+      - MODEL_NAME=nyc_taxi_duration
+      - MODEL_ALIAS=production
+    ports:
+      - "8080:8080"

@@ -93,15 +93,5 @@ def reload_model():
     return {"message": "model_reloaded", "alias": MODEL_ALIAS}
 
 
-@app.post("/predict")
-def predict(req: PredictRequest):
-    if app.state.model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded. Call /reload or /train first.")
-    df = pd.DataFrame(req.data, columns=req.columns)
-    preds = app.state.model.predict(df)
-    # Ensure vanilla types for JSON
-    return {"predictions": [float(x) for x in preds]}
-
-
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

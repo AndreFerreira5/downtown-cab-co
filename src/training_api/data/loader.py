@@ -4,6 +4,8 @@ from typing import Optional
 import glob
 
 
+# TODO integrate with DVC and pull dataset files as needed?
+# TODO calculate the dataset batch size according to free ram (having a maximum cap)
 class DataLoader:
     """Load parquet files in batches on demand."""
 

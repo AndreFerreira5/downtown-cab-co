@@ -19,11 +19,9 @@ services:
       dockerfile: src/training_api/Dockerfile
     container_name: taxi-api
     env_file:
-      - src/training_api/.env
+      - .env
     environment:
-      # as indicated in tutorial 5: inside Docker, flask_app CANNOT reach MLflow at localhost
-      # it must reach it by service name on the same network
-      - MLFLOW_TRACKING_URI=http://mlflow:5050
+      - MLFLOW_TRACKING_URI=http://mlflow:3030
       - MODEL_NAME=nyc_taxi_duration
       - MODEL_ALIAS=production
     ports:
