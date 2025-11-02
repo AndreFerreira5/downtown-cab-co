@@ -154,11 +154,6 @@ jobs:
           
             echo "Deploying to MLFlow Deploy Server..."
             
-            cd ~
-            rm -f .env
-            echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
-            echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
-            
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -224,11 +219,6 @@ jobs:
             set -e
           
             echo "Deploying to API Deploy Server..."
-            
-            cd ~
-            rm -f .env
-            echo "MLFLOW_ALLOWED_HOSTS=${{ secrets.MLFLOW_ALLOWED_HOSTS }}" >> .env
-            echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> .env
             
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
