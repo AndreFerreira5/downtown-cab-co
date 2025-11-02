@@ -172,9 +172,9 @@ jobs:
             echo "$GITHUB_TOKEN" | \
               docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             
-            docker-compose -f mlflow.compose.v1.yml pull
-            docker-compose -f mlflow.compose.v1.yml down || true
-            docker-compose -f mlflow.compose.v1.yml up -d
+            docker compose -f mlflow.compose.v1.yml pull
+            docker compose -f mlflow.compose.v1.yml down || true
+            docker compose -f mlflow.compose.v1.yml up -d
             
             echo "Deployment successful!"
           
@@ -251,9 +251,9 @@ jobs:
             echo "$GITHUB_TOKEN" | \
               docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             
-            docker-compose -f inference.compose.v1.yml pull
-            docker-compose -f inference.compose.v1.yml down || true
-            docker-compose -f inference.compose.v1.yml up -d
+            docker compose -f inference.compose.v1.yml pull
+            docker compose -f inference.compose.v1.yml down || true
+            docker compose -f inference.compose.v1.yml up -d
             
             echo "Deployment successful!"
           
