@@ -123,6 +123,9 @@ jobs:
           username: ${{ secrets.OVPN_USERNAME }}
           password: ${{ secrets.OVPN_PASSWORD }}
 
+      - name: Wait for VPN connection to stabilize
+        run: sleep 5
+
       - name: Setup SSH
         shell: bash
         run: |
@@ -130,7 +133,13 @@ jobs:
           chmod 700 "$HOME/.ssh"
           echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+          
+          for i in 1 2 3; do
+            if ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              break
+            fi
+            if [ $i -lt 3 ]; then sleep 2; fi
+          done || echo "Warning: ssh-keyscan failed, continuing anyway"
 
       - name: Copy docker compose files via SCP
         run: |
@@ -188,6 +197,9 @@ jobs:
           username: ${{ secrets.OVPN_USERNAME }}
           password: ${{ secrets.OVPN_PASSWORD }}
 
+      - name: Wait for VPN connection to stabilize
+        run: sleep 5
+
       - name: Setup SSH
         shell: bash
         run: |
@@ -195,7 +207,14 @@ jobs:
           chmod 700 "$HOME/.ssh"
           echo "${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
+          
+          for i in 1 2 3; do
+            if ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              break
+            fi
+            if [ $i -lt 3 ]; then sleep 2; fi
+          done || echo "Warning: ssh-keyscan failed, continuing anyway"
+          
 
       - name: Copy docker compose files via SCP
         run: |
