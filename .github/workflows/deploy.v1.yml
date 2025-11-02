@@ -132,15 +132,12 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy docker compose file via SSH
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}
-          username: ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}
-          key: ${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}
-          source: "mlflow.compose.v1.yml"
-          target: /home/${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}/
-          overwrite: true
+      - name: Copy docker compose files via SCP
+        run: |
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              mlflow.compose.v1.yml \
+              ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}:/home/${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}/
 
       - name: Deploy over SSH
         env:
@@ -198,15 +195,12 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy docker compose file via SSH
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.API_DEPLOY_SERVER_HOST }}
-          username: ${{ secrets.API_DEPLOY_SERVER_USER }}
-          key: ${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}
-          source: "mlflow.compose.v1.yml"
-          target: /home/${{ secrets.API_DEPLOY_SERVER_USER }}/
-          overwrite: true
+      - name: Copy docker compose files via SCP
+        run: |
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              inference.compose.v1.yml \
+              ${{ secrets.API_DEPLOY_SERVER_USER }}@${{ secrets.API_DEPLOY_SERVER_HOST }}:/home/${{ secrets.API_DEPLOY_SERVER_USER }}/
 
       - name: Deploy over SSH
         env:
