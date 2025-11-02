@@ -151,12 +151,14 @@ jobs:
           
             echo "Deploying to MLFlow Deploy Server..."
             
+            rm -f .env
+            
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker-compose pull
-            docker compose down || true
+            docker-compose -f mlflow.compose.v1.yml pull
+            docker-compose -f mlflow.compose.v1.yml down || true
             docker-compose -f mlflow.compose.v1.yml up -d
             
             echo "Deployment successful!"
@@ -214,13 +216,15 @@ jobs:
           
             echo "Deploying to API Deploy Server..."
             
+            rm -f .env
+            
             # log in to registry
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker-compose pull
-            docker compose down || true
-            docker compose -f inference.compose.v1.yml up -d
+            docker-compose -f inference.compose.v1.yml pull
+            docker-compose -f inference.compose.v1.yml down || true
+            docker-compose -f inference.compose.v1.yml up -d
             
             echo "Deployment successful!"
           
