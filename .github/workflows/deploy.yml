@@ -122,8 +122,12 @@ jobs:
           password: ${{ secrets.OVPN_PASSWORD }}
 
       - name: Setup SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
           echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
@@ -184,8 +188,12 @@ jobs:
           password: ${{ secrets.OVPN_PASSWORD }}
 
       - name: Setup SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
           echo "${{ secrets.MLFLOW_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
@@ -245,8 +253,12 @@ jobs:
           password: ${{ secrets.OVPN_PASSWORD }}
 
       - name: Setup SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
+          if [ ! -d "$HOME/.ssh" ]; then
+            mkdir -p "$HOME/.ssh"
+            chmod 700 "$HOME/.ssh"
+          fi
           echo "${{ secrets.API_DEPLOY_SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.API_DEPLOY_SERVER_HOST }} >> ~/.ssh/known_hosts
