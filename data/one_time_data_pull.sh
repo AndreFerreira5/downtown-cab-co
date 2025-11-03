@@ -19,9 +19,9 @@ for year in "${TRAINING_YEARS[@]}"; do
   dvc add "training/yellow_tripdata_${year}*"
 done
 
-for year in "${TESTING_YEARS[@]}"; do
-  download_year_data "${year}" "testing/"
-  dvc add "testing/yellow_tripdata_${year}*"
-done
+#for year in "${TESTING_YEARS[@]}"; do
+#  download_year_data "${year}" "testing/"
+#  dvc add "testing/yellow_tripdata_${year}*"
+#done
 
 dvc push

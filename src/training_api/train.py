@@ -1,6 +1,7 @@
 ﻿import mlflow
 from river import tree, metrics as river_metrics
 from src.training_api.data.loader import DataLoader
+from src.training_api.data.processer import preprocess_taxi_data
 import pickle
 import logging
 
@@ -8,11 +9,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# TODO training with raw data, later adjust to ingest data from data_processor
 def train_hatr(model_params):
     if not model_params:
         model_params = {'grace_period': 50, 'model_selector_decay': 0.3}
-    data_loader = DataLoader("./data")
+    data_loader = DataLoader("training/")
 
     mlflow.start_run()
 
@@ -22,10 +22,10 @@ def train_hatr(model_params):
 
     batch_count = 1
     while batch := data_loader.load_next_batch():
-        for idx, row in batch.iterrows():
-            # uneducated guess on the disposition of the batch dataframe TODO will need refactoring
-            x = row.drop("target").to_dict()
-            y = row["target"]
+        procesed_batch = preprocess_taxi_data(batch)
+        for idx, row in procesed_batch.iterrows():
+            x = row.drop("trip_duration").to_dict()
+            y = row["trip_duration"]
 
             y_pred = model.predict_one(x)
             mae.update(y, y_pred)

@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 import mlflow
 import mlflow.pyfunc
+import subprocess
 
 from typing import List, Optional
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ from .logging_config import configure_logging
 # TODO this is while traininng algorithm isnt implemented
 try:
     from .train import run_training  # type: ignore
+
     TRAIN_AVAILABLE = True
 except:
     TRAIN_AVAILABLE = False
@@ -52,7 +54,7 @@ class PredictRequest(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    #data_path: str
+    # data_path: str
     experiment_name: Optional[str] = "nyc_taxi_baseline"
 
 
@@ -71,7 +73,7 @@ def train(req: TrainRequest):
     Registers best run as a model and sets alias to 'production'.
     """
     info = run_training(
-        #data_path=req.data_path,
+        # data_path=req.data_path,
         experiment_name=req.experiment_name,
         model_name=MODEL_NAME,
         alias=MODEL_ALIAS,
@@ -87,6 +89,38 @@ def reload_model():
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to load model from MLflow.")
     return {"message": "model_reloaded", "alias": MODEL_ALIAS}
+
+
+@app.post("/download-dataset")
+def download_dataset():
+    script_path = "data/one_time_data_pull.sh"
+    try:
+        # start subprocess with bash
+        process = subprocess.Popen(
+            ['bash', script_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # combine stderr with stdout
+            text=True,
+            bufsize=1,  # line-buffered
+            universal_newlines=True
+        )
+
+        # stream output line by line
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                yield output.rstrip() + '\n'  # yield line with newline
+
+        # check return code
+        retval = process.poll()
+        if retval != 0:
+            yield f"Script exited with error code: {retval}\n"
+    except FileNotFoundError:
+        yield f"Error: Script '{script_path}' not found.\n"
+    except Exception as e:
+        yield f"Error running script: {str(e)}\n"
 
 
 if __name__ == "__main__":
