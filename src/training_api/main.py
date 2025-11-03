@@ -64,7 +64,7 @@ def health():
 
 
 @app.post("/train")
-def train(req: TrainRequest):
+def train():
     if not TRAIN_AVAILABLE:
         raise HTTPException(status_code=501, detail="Training endpoint is disabled until an algorithm is chosen.")
 
@@ -74,9 +74,9 @@ def train(req: TrainRequest):
     """
     info = run_training(
         # data_path=req.data_path,
-        experiment_name=req.experiment_name,
-        model_name=MODEL_NAME,
-        alias=MODEL_ALIAS,
+        #experiment_name=req.experiment_name,
+        #model_name=MODEL_NAME,
+        #alias=MODEL_ALIAS,
     )
     # try to load the fresh model
     load_model_into_app()

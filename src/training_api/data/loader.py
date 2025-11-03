@@ -2,6 +2,9 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional
 import glob
+import os
+import requests
+import subprocess
 
 
 # TODO integrate with DVC and pull dataset files as needed?
@@ -17,6 +20,7 @@ class DataLoader:
             data_dir: Directory containing parquet files
             batch_size: Number of rows to load per batch
         """
+        self.download_dataset()
         self.data_dir = Path(data_dir)
         self.batch_size = batch_size
         self.parquet_files = sorted(glob.glob(str(self.data_dir / "*.parquet")))
@@ -69,3 +73,30 @@ class DataLoader:
     def get_file_count(self) -> int:
         """Return the number of parquet files."""
         return len(self.parquet_files)
+
+    def download_dataset(self):
+        dest_folder = "training/"
+        training_years = ["2010"]
+        base_url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata"
+        os.makedirs(dest_folder, exist_ok=True)
+
+        for year in training_years:
+            year_str = str(year)
+            downloaded_files = []
+
+            for month in range(1, 13):
+                month_str = f"{month:02d}"
+                url = f"{base_url}_{year_str}-{month_str}.parquet"
+                filename = f"yellow_tripdata_{year_str}-{month_str}.parquet"
+                filepath = os.path.join(dest_folder, filename)
+
+                try:
+                    response = requests.get(url, stream=True)
+                    response.raise_for_status()
+                    with open(filepath, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    print(f"Downloaded {url}")
+                    downloaded_files.append(filepath)
+                except requests.exceptions.RequestException as e:
+                    print(f"Failed to download {url}: {e}")
