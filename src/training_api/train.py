@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def train_hatr(model_params):
     if not model_params:
         model_params = {'grace_period': 50, 'model_selector_decay': 0.3}
-    data_loader = DataLoader("training/", batch_size=2_000)
+    data_loader = DataLoader("training/", batch_size=2_000, download_dataset=True)
 
     mlflow.start_run()
 
