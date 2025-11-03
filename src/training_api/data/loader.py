@@ -5,6 +5,10 @@ import glob
 import os
 import requests
 import subprocess
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 # TODO integrate with DVC and pull dataset files as needed?
@@ -91,7 +95,7 @@ class DataLoader:
                 filepath = os.path.join(dest_folder, filename)
 
                 try:
-                    response = requests.get(url, stream=True)
+                    response = requests.get(url, stream=True, timeout=(10, 30))
                     response.raise_for_status()
                     with open(filepath, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=8192):
@@ -102,3 +106,4 @@ class DataLoader:
                     print(f"Failed to download {url}: {e}")
 
                 break # TODO remove this
+        logger.info("finished downloading!")
