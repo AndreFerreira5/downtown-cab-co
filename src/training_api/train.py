@@ -4,6 +4,7 @@ from src.training_api.data.loader import DataLoader
 from src.training_api.data.processer import preprocess_taxi_data
 import pickle
 import logging
+import pandas as pd
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,14 @@ def train_hatr(model_params):
     batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
         processed_batch, _ = preprocess_taxi_data(batch)
+        if "trip_duration" not in processed_batch.columns:
+            logger.warning(f"Skipping batch: No 'trip_duration' after preprocessing (check schema)")
+            continue
+
         for idx, row in processed_batch.iterrows():
+            if "trip_duration" not in row.index or pd.isna(row["trip_duration"]):
+                continue  # Skip invalid rows
+
             x = row.drop("trip_duration").to_dict()
             y = row["trip_duration"]
 
