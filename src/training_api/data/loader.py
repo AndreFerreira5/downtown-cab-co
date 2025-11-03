@@ -100,3 +100,5 @@ class DataLoader:
                     downloaded_files.append(filepath)
                 except requests.exceptions.RequestException as e:
                     print(f"Failed to download {url}: {e}")
+
+                break # TODO remove this
