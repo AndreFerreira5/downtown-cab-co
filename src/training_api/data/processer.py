@@ -142,7 +142,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _parse_datetimes(self, df: pd.DataFrame) -> pd.DataFrame:
         """Parse pickup and dropoff datetime columns."""
-        datetime_cols = ["tpep_pickup_datetime", "tpep_dropoff_datetime"]
+        datetime_cols = ["pickup_datetime", "dropoff_datetime"]
 
         for col in datetime_cols:
             if col in df.columns:
@@ -153,9 +153,9 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _create_target(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create trip duration target variable in seconds."""
-        if "tpep_pickup_datetime" in df.columns and "tpep_dropoff_datetime" in df.columns:
+        if "pickup_datetime" in df.columns and "dropoff_datetime" in df.columns:
             df[self.target_column] = (
-                    df["tpep_dropoff_datetime"] - df["tpep_pickup_datetime"]
+                    df["dropoff_datetime"] - df["pickup_datetime"]
             ).dt.total_seconds()
 
         return df
@@ -233,10 +233,10 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         initial_count = len(df)
 
         # Remove records with invalid datetimes
-        if "tpep_pickup_datetime" in df.columns:
-            df = df[df["tpep_pickup_datetime"].notna()]
-        if "tpep_dropoff_datetime" in df.columns:
-            df = df[df["tpep_dropoff_datetime"].notna()]
+        if "pickup_datetime" in df.columns:
+            df = df[df["pickup_datetime"].notna()]
+        if "dropoff_datetime" in df.columns:
+            df = df[df["dropoff_datetime"].notna()]
 
         # Remove records with negative or zero trip duration
         if self.target_column in df.columns:
@@ -312,15 +312,15 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _create_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create engineered features for modeling."""
-        if "tpep_pickup_datetime" not in df.columns:
+        if "pickup_datetime" not in df.columns:
             return df
 
         # Temporal features
-        df["pickup_hour"] = df["tpep_pickup_datetime"].dt.hour
-        df["pickup_day"] = df["tpep_pickup_datetime"].dt.day
-        df["pickup_weekday"] = df["tpep_pickup_datetime"].dt.dayofweek
-        df["pickup_month"] = df["tpep_pickup_datetime"].dt.month
-        df["pickup_year"] = df["tpep_pickup_datetime"].dt.year
+        df["pickup_hour"] = df["pickup_datetime"].dt.hour
+        df["pickup_day"] = df["pickup_datetime"].dt.day
+        df["pickup_weekday"] = df["pickup_datetime"].dt.dayofweek
+        df["pickup_month"] = df["pickup_datetime"].dt.month
+        df["pickup_year"] = df["pickup_datetime"].dt.year
 
         # Is weekend
         df["is_weekend"] = (df["pickup_weekday"] >= 5).astype(int)
@@ -369,7 +369,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             df["is_airport_trip"] = df["RatecodeID"].isin(["2", "3"]).astype(int)
 
         logger.info(
-            f"Created {len([c for c in df.columns if c not in ['tpep_pickup_datetime', 'tpep_dropoff_datetime']])} features")
+            f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features")
 
         return df
 

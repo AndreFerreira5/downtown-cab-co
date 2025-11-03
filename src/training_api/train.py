@@ -5,6 +5,7 @@ from src.training_api.data.processer import preprocess_taxi_data
 import pickle
 import logging
 import pandas as pd
+import os
 
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 def train_hatr(model_params):
     if not model_params:
         model_params = {'grace_period': 50, 'model_selector_decay': 0.3}
-    data_loader = DataLoader("training/")
+    data_loader = DataLoader("training/", batch_size=2_000)
 
     mlflow.start_run()
 
@@ -21,9 +22,14 @@ def train_hatr(model_params):
     mae = river_metrics.MAE()
     rmse = river_metrics.RMSE()
 
+    checkpoint_dir = "checkpoints"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
     batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+        logger.info(batch.columns)
         processed_batch, _ = preprocess_taxi_data(batch)
+        logger.info(processed_batch.columns)
         if "trip_duration" not in processed_batch.columns:
             logger.warning(f"Skipping batch: No 'trip_duration' after preprocessing (check schema)")
             continue
@@ -34,6 +40,13 @@ def train_hatr(model_params):
 
             x = row.drop("trip_duration").to_dict()
             y = row["trip_duration"]
+            x.pop("vendor_id")
+            x.pop("rate_code")
+            x.pop("payment_type")
+            x.pop("pickup_longitude")
+            x.pop("pickup_latitude")
+            x.pop("pickup_datetime")
+            x.pop("dropoff_datetime")
 
             y_pred = model.predict_one(x)
             mae.update(y, y_pred)
@@ -42,7 +55,10 @@ def train_hatr(model_params):
             model.learn_one(x, y)
 
         # log each batch into mlflow # TODO is this too much?
-        checkpoint_path = f'hatr_{model_params["grace_period"]}_{model_params["model_selector_decay"]}_checkpoint_{batch_count}.pkl'
+        checkpoint_path = os.path.join(
+            checkpoint_dir,
+            f'hatr_{model_params["grace_period"]}_{model_params["model_selector_decay"]}_checkpoint_{batch_count}.pkl'
+        )
         with open(checkpoint_path, 'wb') as f:
             pickle.dump(model, f)
         mlflow.log_artifact(checkpoint_path)
@@ -56,7 +72,10 @@ def train_hatr(model_params):
 
         batch_count += 1
 
-    final_model_path = f'hatr_{model_params["grace_period"]}_{model_params["model_selector_decay"]}_final.pkl'
+    final_model_path = os.path.join(
+        checkpoint_dir,
+        f'hatr_{model_params["grace_period"]}_{model_params["model_selector_decay"]}_final.pkl'
+    )
     with open(final_model_path, 'wb') as f:
         pickle.dump(model, f)
     mlflow.log_artifact(final_model_path)
@@ -112,7 +131,7 @@ def run_training(*args, **kwargs):
         logger.info(f"\nRegistering best model with {metric_to_track}: {best_metric_value:.4f}")
 
         # save best model
-        best_model_path = f'hatr_best_model.pkl'
+        best_model_path = f'checkpoints/hatr_best_model.pkl'
         with open(best_model_path, 'wb') as f:
             pickle.dump(best_model, f)
 

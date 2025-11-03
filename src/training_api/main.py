@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = os.getenv("MODEL_NAME", "nyc_taxi_duration")
 MODEL_ALIAS = os.getenv("MODEL_ALIAS", "production")
-MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")
 configure_mlflow()
+MLFLOW_URI = mlflow.get_tracking_uri()
 
 app = FastAPI(title="NYC Taxi Baseline API", version="0.1.0")
 
