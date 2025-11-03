@@ -173,7 +173,7 @@ jobs:
               docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             
             docker compose -f mlflow.compose.v1.yml pull
-            docker compose -f mlflow.compose.v1.yml down
+            docker compose -f mlflow.compose.v1.yml down --remove-orphans --volumes=false && docker compose -f inference.compose.v1.yml down --remove-orphans --volumes=false && docker network prune -f && docker system prune -f --filter until=1h
             docker compose -f mlflow.compose.v1.yml up -d
             
             echo "Deployment successful!"
@@ -252,7 +252,7 @@ jobs:
               docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             
             docker compose -f inference.compose.v1.yml pull
-            docker compose -f inference.compose.v1.yml down
+            docker compose -f inference.compose.v1.yml down --remove-orphans --volumes=false && docker compose -f inference.compose.v1.yml down --remove-orphans --volumes=false && docker network prune -f && docker system prune -f --filter until=1h
             docker compose -f inference.compose.v1.yml up -d
           
             echo "Deployment successful!"
