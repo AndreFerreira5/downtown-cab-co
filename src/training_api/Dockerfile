@@ -7,6 +7,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 
+COPY data/ /app/data/
 COPY src/training_api /app/src/training_api
 
 ENV PATH="/app/.venv/bin:$PATH"
