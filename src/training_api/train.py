@@ -21,9 +21,9 @@ def train_hatr(model_params):
     rmse = river_metrics.RMSE()
 
     batch_count = 1
-    while batch := data_loader.load_next_batch():
-        procesed_batch = preprocess_taxi_data(batch)
-        for idx, row in procesed_batch.iterrows():
+    while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+        processed_batch, _ = preprocess_taxi_data(batch)
+        for idx, row in processed_batch.iterrows():
             x = row.drop("trip_duration").to_dict()
             y = row["trip_duration"]
 
@@ -66,7 +66,7 @@ def train_hatr(model_params):
 
 
 def run_training(*args, **kwargs):
-    # mlflow.set_experiment(experiment_name)
+    mlflow.set_experiment("nyc_taxi_duration")
     model_params = [
         {'grace_period': gp, 'model_selector_decay': msd}
         for gp in [50, 100, 200]
