@@ -175,6 +175,7 @@ jobs:
             docker compose -f mlflow.compose.v1.yml pull
             docker compose -f mlflow.compose.v1.yml down || true
             docker compose -f mlflow.compose.v1.yml up -d
+            docker system prune -f
             
             echo "Deployment successful!"
           
@@ -254,7 +255,8 @@ jobs:
             docker compose -f inference.compose.v1.yml pull
             docker compose -f inference.compose.v1.yml down || true
             docker compose -f inference.compose.v1.yml up -d
-            
+            docker system prune -f
+          
             echo "Deployment successful!"
           
           ENDSSH
