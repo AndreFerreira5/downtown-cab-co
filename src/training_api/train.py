@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def train_hatr(model_params):
     if not model_params:
         model_params = {'grace_period': 50, 'model_selector_decay': 0.3}
-    data_loader = DataLoader("training/", batch_size=2_000, download_dataset=True)
+    data_loader = DataLoader("training/", download_dataset=True)
 
     mlflow.start_run()
 
@@ -27,9 +27,7 @@ def train_hatr(model_params):
 
     batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
-        logger.info(batch.columns)
-        processed_batch, _ = preprocess_taxi_data(batch)
-        logger.info(processed_batch.columns)
+        processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
         if "trip_duration" not in processed_batch.columns:
             logger.warning(f"Skipping batch: No 'trip_duration' after preprocessing (check schema)")
             continue
