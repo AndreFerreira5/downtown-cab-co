@@ -91,37 +91,5 @@ def reload_model():
     return {"message": "model_reloaded", "alias": MODEL_ALIAS}
 
 
-@app.post("/download-dataset")
-def download_dataset():
-    script_path = "data/one_time_data_pull.sh"
-    try:
-        # start subprocess with bash
-        process = subprocess.Popen(
-            ['bash', script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,  # combine stderr with stdout
-            text=True,
-            bufsize=1,  # line-buffered
-            universal_newlines=True
-        )
-
-        # stream output line by line
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                yield output.rstrip() + '\n'  # yield line with newline
-
-        # check return code
-        retval = process.poll()
-        if retval != 0:
-            yield f"Script exited with error code: {retval}\n"
-    except FileNotFoundError:
-        yield f"Error: Script '{script_path}' not found.\n"
-    except Exception as e:
-        yield f"Error running script: {str(e)}\n"
-
-
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
