@@ -7,7 +7,6 @@ import logging
 import pandas as pd
 import os
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -90,12 +89,16 @@ def train_hatr(model_params):
     return model, final_metrics, run_id
 
 
-def run_training(*args, **kwargs):
-    mlflow.set_experiment("nyc_taxi_duration")
+def run_training(
+        commit_sha: str,
+        model_name: str,
+        experiment_name: str
+):
+    mlflow.set_experiment(experiment_name)
     model_params = [
         {'grace_period': gp, 'model_selector_decay': msd}
-        for gp in [50, 100, 200]
-        for msd in [0.3, 0.6, 0.95]
+        for gp in [200, 100, 50]
+        for msd in [0.95, 0.6, 0.3]
     ]
 
     best_model = None
@@ -122,7 +125,8 @@ def run_training(*args, **kwargs):
             best_run_id = run_id
             best_params = mp
         else:
-            logger.info(f"Model not better. Best {metric_to_track}: {best_metric_value:.4f}, Current: {current_metric:.4f}")
+            logger.info(
+                f"Model not better. Best {metric_to_track}: {best_metric_value:.4f}, Current: {current_metric:.4f}")
 
     # register best model to MLflow Model Registry
     if best_model is not None:
@@ -142,17 +146,31 @@ def run_training(*args, **kwargs):
             model_uri = f"runs:/{best_run_id}/hatr_best_model.pkl"
 
             try:
-                mlflow.register_model(
+                registered_model = mlflow.register_model(
                     model_uri=model_uri,
                     name="HoeffdingAdaptiveTreeRegressor"
                 )
-                logger.info(f"Model registered successfully")
+                logger.info(f"Model registered successfully ({registered_model.version})")
+
+                from mlflow.tracking import MlflowClient
+                client = MlflowClient()
+                client.set_registered_model_alias(
+                    name=model_name,
+                    alias="staging",
+                    version=registered_model.version,
+                )
+                client.set_registered_model_alias(
+                    name=model_name,
+                    alias=commit_sha,
+                    version=registered_model.version,
+                )
+
             except Exception as e:
                 logger.info(f"Model already exists in registry, updating version: {e}")
                 # if model name already exists, it will create a new version
                 mlflow.register_model(
                     model_uri=model_uri,
-                    name="HoeffdingAdaptiveTreeRegressor"
+                    name=model_name
                 )
 
         logger.info("\n" + "=" * 60)

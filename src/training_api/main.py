@@ -54,8 +54,9 @@ class PredictRequest(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    # data_path: str
-    experiment_name: Optional[str] = "nyc_taxi_baseline"
+    commit_sha: str
+    model_name: str
+    experiment_name: str
 
 
 @app.get("/health")
@@ -64,7 +65,7 @@ def health():
 
 
 @app.post("/train")
-def train():
+def train(req: TrainRequest):
     if not TRAIN_AVAILABLE:
         raise HTTPException(status_code=501, detail="Training endpoint is disabled until an algorithm is chosen.")
 
@@ -73,10 +74,9 @@ def train():
     Registers best run as a model and sets alias to 'production'.
     """
     info = run_training(
-        # data_path=req.data_path,
-        #experiment_name=req.experiment_name,
-        #model_name=MODEL_NAME,
-        #alias=MODEL_ALIAS,
+        commit_sha=req.commit_sha,
+        model_name=MODEL_NAME,
+        experiment_name=req.experiment_name,
     )
     # try to load the fresh model
     load_model_into_app()
