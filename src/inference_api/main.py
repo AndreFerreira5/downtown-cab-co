@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 import mlflow
 import mlflow.pyfunc
 
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 import pandas as pd
 
@@ -32,7 +32,9 @@ app.state.model = None
 
 def load_model_into_app():
     try:
-        app.state.model = mlflow.pyfunc.load_model(model_uri=f"models:/{MODEL_NAME}@{MODEL_ALIAS}")
+        app.state.model = mlflow.pyfunc.load_model(
+            model_uri=f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
+        )
         return True
     except Exception as e:
         print(f"[WARN] Could not load model: {e}")
@@ -47,7 +49,11 @@ class PredictRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "model_loaded": app.state.model is not None, "mlflow_uri": MLFLOW_URI}
+    return {
+        "status": "healthy",
+        "model_loaded": app.state.model is not None,
+        "mlflow_uri": MLFLOW_URI,
+    }
 
 
 @app.get("/reload")
@@ -61,7 +67,9 @@ def reload_model():
 @app.post("/predict")
 def predict(req: PredictRequest):
     if app.state.model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded. Call /reload or /train first.")
+        raise HTTPException(
+            status_code=503, detail="Model not loaded. Call /reload or /train first."
+        )
     df = pd.DataFrame(req.data, columns=req.columns)
     preds = app.state.model.predict(df)
     # Ensure vanilla types for JSON

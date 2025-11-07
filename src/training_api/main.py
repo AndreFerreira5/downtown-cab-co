@@ -5,23 +5,13 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 import mlflow
 import mlflow.pyfunc
-import subprocess
 
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
-import pandas as pd
 from .train import run_training
 from .config import configure_mlflow
 
 from .logging_config import configure_logging
-
-# TODO this is while traininng algorithm isnt implemented
-try:
-    from .train import run_training  # type: ignore
-
-    TRAIN_AVAILABLE = True
-except:
-    TRAIN_AVAILABLE = False
 
 # configure logging globally
 configure_logging()
@@ -40,7 +30,9 @@ app.state.model = None
 
 def load_model_into_app():
     try:
-        app.state.model = mlflow.pyfunc.load_model(model_uri=f"models:/{MODEL_NAME}@{MODEL_ALIAS}")
+        app.state.model = mlflow.pyfunc.load_model(
+            model_uri=f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
+        )
         return True
     except Exception as e:
         print(f"[WARN] Could not load model: {e}")
@@ -61,14 +53,15 @@ class TrainRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "model_loaded": app.state.model is not None, "mlflow_uri": MLFLOW_URI}
+    return {
+        "status": "healthy",
+        "model_loaded": app.state.model is not None,
+        "mlflow_uri": MLFLOW_URI,
+    }
 
 
 @app.post("/train")
 def train(req: TrainRequest):
-    if not TRAIN_AVAILABLE:
-        raise HTTPException(status_code=501, detail="Training endpoint is disabled until an algorithm is chosen.")
-
     """
     Trains a simple baseline model and logs everything to MLflow.
     Registers best run as a model and sets alias to 'production'.
@@ -80,7 +73,7 @@ def train(req: TrainRequest):
     )
     # try to load the fresh model
     load_model_into_app()
-    return {"message": "training_done", **info}
+    return {"message": "train finished", **info}
 
 
 @app.get("/reload")

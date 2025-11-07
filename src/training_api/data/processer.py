@@ -20,11 +20,11 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-            self,
-            standardize_columns: bool = False,
-            remove_outliers: bool = True,
-            create_features: bool = False,
-            target_column: str = "trip_duration",
+        self,
+        standardize_columns: bool = False,
+        remove_outliers: bool = True,
+        create_features: bool = False,
+        target_column: str = "trip_duration",
     ):
         """
         Initialize the preprocessor.
@@ -58,21 +58,38 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Store categorical mappings observed during training
         if "VendorID" in X.columns:
             self.vendor_mapping_ = {
-                "CMT": "1", "VTS": "2",
-                "1": "1", "2": "2", "6": "6", "7": "7"
+                "CMT": "1",
+                "VTS": "2",
+                "1": "1",
+                "2": "2",
+                "6": "6",
+                "7": "7",
             }
 
         if "payment_type" in X.columns:
             self.payment_mapping_ = {
-                "CSH": "2", "CRD": "1", "NOC": "3", "DIS": "4",
-                "0": "0", "1": "1", "2": "2", "3": "3",
-                "4": "4", "5": "5", "6": "6"
+                "CSH": "2",
+                "CRD": "1",
+                "NOC": "3",
+                "DIS": "4",
+                "0": "0",
+                "1": "1",
+                "2": "2",
+                "3": "3",
+                "4": "4",
+                "5": "5",
+                "6": "6",
             }
 
         if "RatecodeID" in X.columns:
             self.ratecode_mapping_ = {
-                "1": "1", "2": "2", "3": "3", "4": "4",
-                "5": "5", "6": "6", "99": "99"
+                "1": "1",
+                "2": "2",
+                "3": "3",
+                "4": "4",
+                "5": "5",
+                "6": "6",
+                "99": "99",
             }
 
         return self
@@ -155,7 +172,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         """Create trip duration target variable in seconds."""
         if "pickup_datetime" in df.columns and "dropoff_datetime" in df.columns:
             df[self.target_column] = (
-                    df["dropoff_datetime"] - df["pickup_datetime"]
+                df["dropoff_datetime"] - df["pickup_datetime"]
             ).dt.total_seconds()
 
         return df
@@ -164,12 +181,22 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         """Convert columns to appropriate data types."""
         # Numeric columns
         numeric_cols = [
-            "passenger_count", "trip_distance", "fare_amount",
-            "extra", "mta_tax", "tip_amount", "tolls_amount",
-            "improvement_surcharge", "total_amount", "congestion_surcharge",
-            "airport_fee", "cbd_congestion_fee",
-            "pickup_longitude", "pickup_latitude",
-            "dropoff_longitude", "dropoff_latitude"
+            "passenger_count",
+            "trip_distance",
+            "fare_amount",
+            "extra",
+            "mta_tax",
+            "tip_amount",
+            "tolls_amount",
+            "improvement_surcharge",
+            "total_amount",
+            "congestion_surcharge",
+            "airport_fee",
+            "cbd_congestion_fee",
+            "pickup_longitude",
+            "pickup_latitude",
+            "dropoff_longitude",
+            "dropoff_latitude",
         ]
 
         for col in numeric_cols:
@@ -178,14 +205,20 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Categorical columns with mapping
         if "VendorID" in df.columns and self.vendor_mapping_:
-            df["VendorID"] = df["VendorID"].astype(str).map(
-                self.vendor_mapping_
-            ).fillna(df["VendorID"])
+            df["VendorID"] = (
+                df["VendorID"]
+                .astype(str)
+                .map(self.vendor_mapping_)
+                .fillna(df["VendorID"])
+            )
 
         if "payment_type" in df.columns and self.payment_mapping_:
-            df["payment_type"] = df["payment_type"].astype(str).map(
-                self.payment_mapping_
-            ).fillna(df["payment_type"])
+            df["payment_type"] = (
+                df["payment_type"]
+                .astype(str)
+                .map(self.payment_mapping_)
+                .fillna(df["payment_type"])
+            )
 
         if "RatecodeID" in df.columns and self.ratecode_mapping_:
             df["RatecodeID"] = df["RatecodeID"].astype(str).fillna("1")
@@ -196,9 +229,11 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             df["store_and_fwd_flag"] = df["store_and_fwd_flag"].replace(
                 {"Y": 1, "N": 0, "": 0}
             )
-            df["store_and_fwd_flag"] = pd.to_numeric(
-                df["store_and_fwd_flag"], errors="coerce"
-            ).fillna(0).astype(int)
+            df["store_and_fwd_flag"] = (
+                pd.to_numeric(df["store_and_fwd_flag"], errors="coerce")
+                .fillna(0)
+                .astype(int)
+            )
 
         return df
 
@@ -218,9 +253,14 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Financial columns: fill with 0
         financial_cols = [
-            "extra", "mta_tax", "tip_amount", "tolls_amount",
-            "improvement_surcharge", "congestion_surcharge",
-            "airport_fee", "cbd_congestion_fee"
+            "extra",
+            "mta_tax",
+            "tip_amount",
+            "tolls_amount",
+            "improvement_surcharge",
+            "congestion_surcharge",
+            "airport_fee",
+            "cbd_congestion_fee",
         ]
         for col in financial_cols:
             if col in df.columns:
@@ -257,19 +297,19 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Remove records with invalid coordinates (if present)
         if "pickup_longitude" in df.columns and "pickup_latitude" in df.columns:
             df = df[
-                (df["pickup_longitude"] != 0) &
-                (df["pickup_latitude"] != 0) &
-                (df["pickup_longitude"].between(-180, 180)) &
-                (df["pickup_latitude"].between(-90, 90))
-                ]
+                (df["pickup_longitude"] != 0)
+                & (df["pickup_latitude"] != 0)
+                & (df["pickup_longitude"].between(-180, 180))
+                & (df["pickup_latitude"].between(-90, 90))
+            ]
 
         if "dropoff_longitude" in df.columns and "dropoff_latitude" in df.columns:
             df = df[
-                (df["dropoff_longitude"] != 0) &
-                (df["dropoff_latitude"] != 0) &
-                (df["dropoff_longitude"].between(-180, 180)) &
-                (df["dropoff_latitude"].between(-90, 90))
-                ]
+                (df["dropoff_longitude"] != 0)
+                & (df["dropoff_latitude"] != 0)
+                & (df["dropoff_longitude"].between(-180, 180))
+                & (df["dropoff_latitude"].between(-90, 90))
+            ]
 
         logger.info(f"Removed {initial_count - len(df)} invalid records")
 
@@ -281,24 +321,15 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Trip duration: 1 minute to 3 hours (reasonable NYC taxi trip)
         if self.target_column in df.columns:
-            df = df[
-                (df[self.target_column] >= 60) &
-                (df[self.target_column] <= 10800)
-                ]
+            df = df[(df[self.target_column] >= 60) & (df[self.target_column] <= 10800)]
 
         # Trip distance: 0.1 to 100 miles
         if "trip_distance" in df.columns:
-            df = df[
-                (df["trip_distance"] >= 0.1) &
-                (df["trip_distance"] <= 100)
-                ]
+            df = df[(df["trip_distance"] >= 0.1) & (df["trip_distance"] <= 100)]
 
         # Fare amount: $2.50 to $500 (reasonable range)
         if "fare_amount" in df.columns:
-            df = df[
-                (df["fare_amount"] >= 2.5) &
-                (df["fare_amount"] <= 500)
-                ]
+            df = df[(df["fare_amount"] >= 2.5) & (df["fare_amount"] <= 500)]
 
         # Speed check: 0.5 to 65 mph (reasonable NYC speeds)
         if "trip_distance" in df.columns and self.target_column in df.columns:
@@ -327,41 +358,47 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Rush hour flags (7-10 AM and 4-7 PM on weekdays)
         df["is_morning_rush"] = (
-                (df["pickup_hour"].between(7, 10)) &
-                (df["pickup_weekday"] < 5)
+            (df["pickup_hour"].between(7, 10)) & (df["pickup_weekday"] < 5)
         ).astype(int)
 
         df["is_evening_rush"] = (
-                (df["pickup_hour"].between(16, 19)) &
-                (df["pickup_weekday"] < 5)
+            (df["pickup_hour"].between(16, 19)) & (df["pickup_weekday"] < 5)
         ).astype(int)
 
         # Night trip (10 PM - 6 AM)
-        df["is_night"] = (
-                (df["pickup_hour"] >= 22) | (df["pickup_hour"] <= 6)
-        ).astype(int)
+        df["is_night"] = ((df["pickup_hour"] >= 22) | (df["pickup_hour"] <= 6)).astype(
+            int
+        )
 
         # Distance-based features (if coordinates available)
-        if all(col in df.columns for col in [
-            "pickup_longitude", "pickup_latitude",
-            "dropoff_longitude", "dropoff_latitude"
-        ]):
+        if all(
+            col in df.columns
+            for col in [
+                "pickup_longitude",
+                "pickup_latitude",
+                "dropoff_longitude",
+                "dropoff_latitude",
+            ]
+        ):
             # Haversine distance
             df["haversine_distance"] = self._calculate_haversine(
-                df["pickup_latitude"], df["pickup_longitude"],
-                df["dropoff_latitude"], df["dropoff_longitude"]
+                df["pickup_latitude"],
+                df["pickup_longitude"],
+                df["dropoff_latitude"],
+                df["dropoff_longitude"],
             )
 
             # Manhattan distance (approximation)
-            df["manhattan_distance"] = (
-                    np.abs(df["pickup_latitude"] - df["dropoff_latitude"]) +
-                    np.abs(df["pickup_longitude"] - df["dropoff_longitude"])
-            )
+            df["manhattan_distance"] = np.abs(
+                df["pickup_latitude"] - df["dropoff_latitude"]
+            ) + np.abs(df["pickup_longitude"] - df["dropoff_longitude"])
 
             # Bearing (direction of travel)
             df["bearing"] = self._calculate_bearing(
-                df["pickup_latitude"], df["pickup_longitude"],
-                df["dropoff_latitude"], df["dropoff_longitude"]
+                df["pickup_latitude"],
+                df["pickup_longitude"],
+                df["dropoff_latitude"],
+                df["dropoff_longitude"],
             )
 
         # Airport trip indicator (if rate code available)
@@ -369,7 +406,8 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             df["is_airport_trip"] = df["RatecodeID"].isin(["2", "3"]).astype(int)
 
         logger.info(
-            f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features")
+            f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features"
+        )
 
         return df
 
@@ -407,12 +445,12 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
 
 def preprocess_taxi_data(
-        df: pd.DataFrame,
-        standardize_columns: bool = False,
-        remove_outliers: bool = True,
-        create_features: bool = False,
-        target_column: str = "trip_duration",
-        fit_preprocessor: bool = False,
+    df: pd.DataFrame,
+    standardize_columns: bool = False,
+    remove_outliers: bool = True,
+    create_features: bool = False,
+    target_column: str = "trip_duration",
+    fit_preprocessor: bool = False,
 ) -> Tuple[pd.DataFrame, TaxiDataPreprocessor]:
     """
     Convenience function to preprocess taxi data.
@@ -454,20 +492,30 @@ def get_feature_columns(include_target: bool = False) -> list:
     """
     feature_cols = [
         # Temporal features
-        "pickup_hour", "pickup_day", "pickup_weekday",
-        "pickup_month", "pickup_year",
-        "is_weekend", "is_morning_rush", "is_evening_rush", "is_night",
-
+        "pickup_hour",
+        "pickup_day",
+        "pickup_weekday",
+        "pickup_month",
+        "pickup_year",
+        "is_weekend",
+        "is_morning_rush",
+        "is_evening_rush",
+        "is_night",
         # Trip characteristics
-        "passenger_count", "trip_distance",
-
+        "passenger_count",
+        "trip_distance",
         # Location features (if available)
-        "PULocationID", "DOLocationID",
-        "haversine_distance", "manhattan_distance", "bearing",
-
+        "PULocationID",
+        "DOLocationID",
+        "haversine_distance",
+        "manhattan_distance",
+        "bearing",
         # Categorical features
-        "VendorID", "RatecodeID", "payment_type",
-        "store_and_fwd_flag", "is_airport_trip",
+        "VendorID",
+        "RatecodeID",
+        "payment_type",
+        "store_and_fwd_flag",
+        "is_airport_trip",
     ]
 
     if include_target:

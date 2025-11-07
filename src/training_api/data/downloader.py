@@ -7,10 +7,10 @@ logger = logging.getLogger(__name__)
 
 class DataDownloader:
     def __init__(
-            self,
-            base_url="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata",
-            dest_folder="training/",
-            years_to_download=["2010", "2011"]
+        self,
+        base_url="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata",
+        dest_folder="training/",
+        years_to_download=["2010", "2011"],
     ):
         self.base_url = base_url
         self.dest_folder = dest_folder
@@ -32,7 +32,7 @@ class DataDownloader:
                 try:
                     response = requests.get(url, stream=True, timeout=(10, 30))
                     response.raise_for_status()
-                    with open(filepath, 'wb') as f:
+                    with open(filepath, "wb") as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
                     logger.info(f"Downloaded {url}")

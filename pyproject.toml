@@ -10,6 +10,8 @@ dependencies = [
     "fastapi>=0.120.0",
     "uvicorn>=0.38.0",
     "river>=0.22.0",
+    "ruff>=0.14.4",
+    "mypy>=1.18.2",
 ]
 
 [tool.uv.workspace]
