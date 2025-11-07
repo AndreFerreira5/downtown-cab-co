@@ -12,8 +12,8 @@ class TestInferenceAPI:
     @pytest.fixture
     def client(self):
         """Create a test client for the inference API."""
-        with patch('src.inference_api.main.mlflow.set_tracking_uri'):
-            from src.inference_api.main import app
+        with patch('inference_api.main.mlflow.set_tracking_uri'):
+            from inference_api.main import app
             return TestClient(app)
     
     def test_health_endpoint(self, client):
@@ -36,7 +36,7 @@ class TestInferenceAPI:
         assert isinstance(data["model_loaded"], bool)
         assert isinstance(data["mlflow_uri"], str)
     
-    @patch('src.inference_api.main.load_model_into_app')
+    @patch('inference_api.main.load_model_into_app')
     def test_reload_endpoint_success(self, mock_load_model, client):
         """Test successful model reload."""
         mock_load_model.return_value = True
@@ -49,7 +49,7 @@ class TestInferenceAPI:
         assert data["message"] == "model_reloaded"
         assert "alias" in data
     
-    @patch('src.inference_api.main.load_model_into_app')
+    @patch('inference_api.main.load_model_into_app')
     def test_reload_endpoint_failure(self, mock_load_model, client):
         """Test model reload failure."""
         mock_load_model.return_value = False
@@ -61,7 +61,7 @@ class TestInferenceAPI:
         assert "detail" in data
         assert "Failed to load model" in data["detail"]
     
-    @patch('src.inference_api.main.app.state')
+    @patch('inference_api.main.app.state')
     def test_predict_endpoint_model_not_loaded(self, mock_state, client):
         """Test predict endpoint when model is not loaded."""
         mock_state.model = None
@@ -78,7 +78,7 @@ class TestInferenceAPI:
         assert "detail" in data
         assert "Model not loaded" in data["detail"]
     
-    @patch('src.inference_api.main.app.state')
+    @patch('inference_api.main.app.state')
     def test_predict_endpoint_success(self, mock_state, client):
         """Test successful prediction."""
         # Mock model
@@ -100,7 +100,7 @@ class TestInferenceAPI:
         assert data["predictions"][0] == 100.5
         assert data["predictions"][1] == 200.3
     
-    @patch('src.inference_api.main.app.state')
+    @patch('inference_api.main.app.state')
     def test_predict_endpoint_calls_model_predict(self, mock_state, client):
         """Test that predict endpoint calls model.predict with correct data."""
         # Mock model
@@ -124,7 +124,7 @@ class TestInferenceAPI:
         assert list(call_args.columns) == ["col1", "col2", "col3"]
         assert len(call_args) == 1
     
-    @patch('src.inference_api.main.app.state')
+    @patch('inference_api.main.app.state')
     def test_predict_endpoint_multiple_rows(self, mock_state, client):
         """Test prediction with multiple rows."""
         # Mock model
@@ -161,7 +161,7 @@ class TestInferenceAPI:
         response = client.post("/predict", json=request_data)
         assert response.status_code == 422  # Validation error
     
-    @patch('src.inference_api.main.app.state')
+    @patch('inference_api.main.app.state')
     def test_predict_endpoint_returns_floats(self, mock_state, client):
         """Test that predict endpoint returns predictions as floats."""
         # Mock model returning numpy types
@@ -188,10 +188,10 @@ class TestInferenceAPI:
 class TestLoadModelIntoApp:
     """Test cases for load_model_into_app function."""
     
-    @patch('src.inference_api.main.mlflow.pyfunc.load_model')
+    @patch('inference_api.main.mlflow.pyfunc.load_model')
     def test_load_model_into_app_success(self, mock_load_model):
         """Test successful model loading."""
-        from src.inference_api.main import app, load_model_into_app
+        from inference_api.main import app, load_model_into_app
         
         mock_model = MagicMock()
         mock_load_model.return_value = mock_model
@@ -201,10 +201,10 @@ class TestLoadModelIntoApp:
         assert result is True
         assert app.state.model is mock_model
     
-    @patch('src.inference_api.main.mlflow.pyfunc.load_model')
+    @patch('inference_api.main.mlflow.pyfunc.load_model')
     def test_load_model_into_app_failure(self, mock_load_model):
         """Test model loading failure."""
-        from src.inference_api.main import app, load_model_into_app
+        from inference_api.main import app, load_model_into_app
         
         mock_load_model.side_effect = Exception("Model not found")
         
@@ -213,10 +213,10 @@ class TestLoadModelIntoApp:
         assert result is False
         assert app.state.model is None
     
-    @patch('src.inference_api.main.mlflow.pyfunc.load_model')
+    @patch('inference_api.main.mlflow.pyfunc.load_model')
     def test_load_model_into_app_uses_correct_uri(self, mock_load_model):
         """Test that model loading uses correct URI format."""
-        from src.inference_api.main import load_model_into_app
+        from inference_api.main import load_model_into_app
         
         mock_load_model.return_value = MagicMock()
         

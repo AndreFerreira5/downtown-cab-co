@@ -4,7 +4,8 @@ import pytest
 import sys
 import os
 
-# Add src directory to Python path for imports
+# Add src directory to Python path for imports of training_api and its submodules
+# training_api is not a workspace member, so we need to add it to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 
