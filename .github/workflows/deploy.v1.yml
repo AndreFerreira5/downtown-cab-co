@@ -163,11 +163,29 @@ jobs:
       - name: Deploy over SSH
         env:
           IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          M_NAME: ${{ secrets.MODEL_NAME }}
+          EXP_NAME: ${{ secrets.EXPERIMENT_NAME }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
-              bash -s << ENDSSH
+              bash curl -X POST "http://localhost:8080/train" << ENDSSH
+            
+            GITHUB_TOKEN=$1
+            GITHUB_ACTOR=$2
+            COMMIT_SHA=$3
+            MODEL_NAME=$4
+            EXPERIMENT_NAME=$5
+          
+            echo GITHUB_TOKEN=$1
+            echo GITHUB_ACTOR=$2
+            echo COMMIT_SHA=$3
+            echo MODEL_NAME=$4
+            echo EXPERIMENT_NAME=$5
+            
             set -e
           
             echo "Deploying to MLFlow Deploy Server..."
