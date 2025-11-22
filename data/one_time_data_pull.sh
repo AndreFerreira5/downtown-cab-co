@@ -1,7 +1,7 @@
 #!/bin/bash
 
-TRAINING_YEARS=("2010" "2011")
-TESTING_YEARS=("2012")
+TRAINING_YEARS=("2011" "2012")
+TESTING_YEARS=("2013")
 
 download_year_data() {
   local year=$1
