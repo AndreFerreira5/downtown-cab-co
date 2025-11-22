@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def train_hatr(model_params):
     if not model_params:
         model_params = {"grace_period": 50, "model_selector_decay": 0.3}
-    data_loader = DataLoader("training/", download_dataset=True)
+    data_loader = DataLoader("training/", download_dataset=True, batch_size=200_000)
 
     mlflow.start_run()
 
@@ -33,19 +33,20 @@ def train_hatr(model_params):
             )
             continue
 
+        processed_batch.drop("vendor_id", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("rate_code", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("payment_type", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("pickup_longitude", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("pickup_latitude", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
+
         for idx, row in processed_batch.iterrows():
             if "trip_duration" not in row.index or pd.isna(row["trip_duration"]):
                 continue  # Skip invalid rows
 
             x = row.drop("trip_duration").to_dict()
             y = row["trip_duration"]
-            x.pop("vendor_id")
-            x.pop("rate_code")
-            x.pop("payment_type")
-            x.pop("pickup_longitude")
-            x.pop("pickup_latitude")
-            x.pop("pickup_datetime")
-            x.pop("dropoff_datetime")
 
             y_pred = model.predict_one(x)
             mae.update(y, y_pred)
