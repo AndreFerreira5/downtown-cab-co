@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def train_hatr(model_params):
     if not model_params:
         model_params = {"grace_period": 50, "model_selector_decay": 0.3}
-    data_loader = DataLoader("training/", download_dataset=True, batch_size=200_000)
+    data_loader = DataLoader("training/", download_dataset=True)
 
     mlflow.start_run()
 
@@ -41,17 +41,15 @@ def train_hatr(model_params):
         processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
 
-        for idx, row in processed_batch.iterrows():
-            if "trip_duration" not in row.index or pd.isna(row["trip_duration"]):
-                continue  # Skip invalid rows
-
-            x = row.drop("trip_duration").to_dict()
-            y = row["trip_duration"]
+        stream = processed_batch.to_dict(orient="records")
+        for x in stream:
+            y = x.pop("trip_duration", None)
+            if y is None:
+                continue
 
             y_pred = model.predict_one(x)
             mae.update(y, y_pred)
             rmse.update(y, y_pred)
-
             model.learn_one(x, y)
 
         # log each 10 batches to avoid overhead
