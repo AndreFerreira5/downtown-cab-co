@@ -53,7 +53,7 @@ def train_hatr(model_params):
             model.learn_one(x, y)
 
         # log each 10 batches to avoid overhead
-        if batch_count % 10 == 0:
+        if batch_count % 5 == 0:
             # checkpoint_path = os.path.join(
             #     checkpoint_dir,
             #     f"hatr_{model_params['grace_period']}_{model_params['model_selector_decay']}_checkpoint_{batch_count}.pkl",
