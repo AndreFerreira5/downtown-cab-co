@@ -172,7 +172,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
-              bash curl -X POST "http://localhost:8080/train" << ENDSSH
+              bash -s -- "$GH_TOKEN" "$GH_ACTOR" "$SHA" "$M_NAME" "$EXP_NAME" << 'ENDSSH'
             
             GITHUB_TOKEN=$1
             GITHUB_ACTOR=$2
