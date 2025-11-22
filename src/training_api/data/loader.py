@@ -92,6 +92,7 @@ class DataLoader:
 
     def __del__(self):
         """Cleanup when the DataLoader is destroyed."""
-        if self._current_file_data is not None:
+        # Check if attribute exists before accessing it
+        if hasattr(self, '_current_file_data') and self._current_file_data is not None:
             del self._current_file_data
             gc.collect()
