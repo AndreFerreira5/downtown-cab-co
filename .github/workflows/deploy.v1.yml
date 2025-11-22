@@ -10,6 +10,9 @@ env:
   DOCKER_REGISTRY: ghcr.io
   GITHUB_ACTOR: ${{ github.actor }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  COMMIT_SHA: ${{ github.sha }}
+  MODEL_NAME: ${{ secrets.MODEL_NAME }}
+  EXPERIMENT_NAME: ${{ secrets.EXPERIMENT_NAME }}
 
 jobs:
   build-mlflow-container:
@@ -180,6 +183,13 @@ jobs:
             docker compose -f mlflow.compose.v1.yml down --remove-orphans --volumes=false && docker compose -f inference.compose.v1.yml down --remove-orphans --volumes=false && docker network prune -f && docker system prune -f --filter until=1h
             docker system prune -f
             docker compose -f mlflow.compose.v1.yml up -d
+            
+            sleep 5 # wait for services to start
+          
+            curl -X POST "http://localhost:8080/train" \
+              -H "Content-Type: application/json" \
+              -d "{\"commit_sha\": \"$COMMIT_SHA\", \"model_name\": \"$MODEL_NAME\", \"experiment_name\": \"$EXPERIMENT_NAME\"}" \
+              || exit 1
             
             echo "Deployment successful!"
           
