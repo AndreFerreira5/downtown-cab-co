@@ -13,6 +13,8 @@ dependencies = [
     "ruff>=0.14.4",
     "mypy>=1.18.2",
     "pytest>=8.4.2",
+    "httpx>=0.28.1",
+    "httpsx>=0.0.1",
 ]
 
 [tool.uv.workspace]
