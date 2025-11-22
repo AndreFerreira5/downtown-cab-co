@@ -54,24 +54,25 @@ def train_hatr(model_params):
 
             model.learn_one(x, y)
 
-        # log each batch into mlflow # TODO is this too much?
-        checkpoint_path = os.path.join(
-            checkpoint_dir,
-            f"hatr_{model_params['grace_period']}_{model_params['model_selector_decay']}_checkpoint_{batch_count}.pkl",
-        )
-        with open(checkpoint_path, "wb") as f:
-            pickle.dump(model, f)
-        mlflow.log_artifact(checkpoint_path)
-        mlflow.log_param("grace_period", model_params["grace_period"])
-        mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
-        mlflow.log_metrics(
-            {
-                "mae": mae.get(),
-                "rmse": rmse.get(),
-                "samples_processed": data_loader.batch_size * batch_count,
-            },
-            step=data_loader.batch_size * batch_count,
-        )
+        # log each 10 batches to avoid overhead
+        if batch_count % 10 == 0:
+            # checkpoint_path = os.path.join(
+            #     checkpoint_dir,
+            #     f"hatr_{model_params['grace_period']}_{model_params['model_selector_decay']}_checkpoint_{batch_count}.pkl",
+            # )
+            # with open(checkpoint_path, "wb") as f:
+            #     pickle.dump(model, f)
+            # mlflow.log_artifact(checkpoint_path)
+            mlflow.log_param("grace_period", model_params["grace_period"])
+            mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
+            mlflow.log_metrics(
+                {
+                    "mae": mae.get(),
+                    "rmse": rmse.get(),
+                    "samples_processed": data_loader.batch_size * batch_count,
+                },
+                step=data_loader.batch_size * batch_count,
+            )
 
         batch_count += 1
 
