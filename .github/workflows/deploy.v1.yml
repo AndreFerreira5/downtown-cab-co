@@ -172,20 +172,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }} \
-              bash -s -- "$GH_TOKEN" "$GH_ACTOR" "$SHA" "$M_NAME" "$EXP_NAME" << 'ENDSSH'
-            
-            GITHUB_TOKEN=$1
-            GITHUB_ACTOR=$2
-            COMMIT_SHA=$3
-            MODEL_NAME=$4
-            EXPERIMENT_NAME=$5
-          
-            echo GITHUB_TOKEN=$1
-            echo GITHUB_ACTOR=$2
-            echo COMMIT_SHA=$3
-            echo MODEL_NAME=$4
-            echo EXPERIMENT_NAME=$5
-            
+              bash -s << ENDSSH
             set -e
           
             echo "Deploying to MLFlow Deploy Server..."
@@ -203,15 +190,16 @@ jobs:
             docker compose -f mlflow.compose.v1.yml up -d
             
             sleep 5 # wait for services to start
-          
-            curl -X POST "http://localhost:8080/train" \
-              -H "Content-Type: application/json" \
-              -d "{\"commit_sha\": \"$COMMIT_SHA\", \"model_name\": \"$MODEL_NAME\", \"experiment_name\": \"$EXPERIMENT_NAME\"}" \
-              || exit 1
             
             echo "Deployment successful!"
           
           ENDSSH
+
+      - name: Trigger training
+        run: |
+          curl -X POST "http://${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}:8080/train" \
+            -H "Content-Type: application/json" \
+            -D '{"commit_sha": "${{ github.sha }}", "model_name": "${{ secrets.MODEL_NAME }}", "experiment_name": "${{ secrets.EXPERIMENT_NAME }}"}'
 
 
   deploy-inference-api:
