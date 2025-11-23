@@ -6,6 +6,8 @@ import pickle
 import logging
 import pandas as pd
 import os
+import gc
+from collections import namedtuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +43,13 @@ def train_hatr(model_params):
         processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
 
-        stream = processed_batch.to_dict(orient="records")
-        for x in stream:
-            y = x.pop("trip_duration", None)
-            if y is None:
+        for row in processed_batch.itertuples(index=False):
+            y = getattr(row, "trip_duration", None)
+            if y is None or pd.isna(y):
                 continue
+
+            x = row._asdict()
+            del x["trip_duration"]
 
             y_pred = model.predict_one(x)
             mae.update(y, y_pred)
@@ -73,6 +77,8 @@ def train_hatr(model_params):
             )
 
         batch_count += 1
+        del processed_batch
+        gc.collect()
 
     final_model_path = os.path.join(
         checkpoint_dir,
