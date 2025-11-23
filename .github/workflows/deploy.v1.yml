@@ -161,13 +161,6 @@ jobs:
               ${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}@${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}:/home/${{ secrets.MLFLOW_DEPLOY_SERVER_USER }}/
 
       - name: Deploy over SSH
-        env:
-          IMAGE_NAME: ${{ steps.image-name.outputs.IMAGE_NAME }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_ACTOR: ${{ github.actor }}
-          SHA: ${{ github.sha }}
-          M_NAME: ${{ secrets.MODEL_NAME }}
-          EXP_NAME: ${{ secrets.EXPERIMENT_NAME }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
