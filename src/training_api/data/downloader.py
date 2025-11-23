@@ -10,7 +10,7 @@ class DataDownloader:
         self,
         base_url="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata",
         dest_folder="training/",
-        years_to_download=["2010", "2011"],
+        years_to_download=["2011", "2012"],
     ):
         self.base_url = base_url
         self.dest_folder = dest_folder
