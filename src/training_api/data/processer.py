@@ -34,10 +34,15 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         Initialize the preprocessor.
 
         Args:
+            copy: Whether to copy the input dataframe before processing
             standardize_columns: Whether to standardize column names
             remove_outliers: Whether to remove outlier records
             create_features: Whether to create engineered features
             target_column: Name of the target variable (trip duration)
+            columns_to_keep: List of columns to keep after preprocessing
+            datetime_cols: List of datetime columns to parse
+            categorical_cols: List of categorical columns to handle as strings
+            numeric_cols: List of numeric columns to convert to numeric
         """
 
         self.copy = copy # For large batches, deepcopy may be expensive (double mem usage)
@@ -149,6 +154,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _parse_datetimes(self, df: pd.DataFrame) -> pd.DataFrame:
         """Parse pickup and dropoff datetime columns."""
+
         for col in self.datetime_cols:
             if col in df.columns:
                 if not pd.api.types.is_datetime64_any_dtype(df[col]):
@@ -158,6 +164,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _create_target(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create trip duration target variable in seconds."""
+
         if "tpep_pickup_datetime" in df.columns and "tpep_dropoff_datetime" in df.columns:
             df[self.target_column] = (
                 df["dropoff_datetime"] - df["pickup_datetime"]
@@ -169,6 +176,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         """Convert columns to appropriate data types.
             Note: Dates are already parsed as datetime64 dtype.
         """
+
         for col in self.numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -177,6 +185,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
         """Handle missing values with appropriate strategies."""
+
         # Passenger count: default to 1
         if "passenger_count" in df.columns:
             df["passenger_count"] = df["passenger_count"].fillna(1)
@@ -188,6 +197,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _remove_invalid_records(self, df: pd.DataFrame) -> pd.DataFrame:
         """Remove records with invalid or impossible values."""
+
         initial_count = len(df)
 
         # Remove records with invalid datetimes
@@ -240,6 +250,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _create_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create engineered features for modeling."""
+
         if not self.create_features:
             return df
 
@@ -275,30 +286,45 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
 
 def preprocess_taxi_data(
-    df: pd.DataFrame,
-    standardize_columns: bool = False,
-    remove_outliers: bool = True,
-    create_features: bool = False,
-    target_column: str = "trip_duration",
+        df: pd.DataFrame,
+        copy: bool = True,
+        standardize_columns: bool = False,
+        remove_outliers: bool = True,
+        create_features: bool = False,
+        target_column: str = "trip_duration",
+        columns_to_keep: List[str] = None,
+        datetime_cols: List[str] = None,
+        categorical_cols: List[str] = None,
+        numeric_cols: List[str] = None,
 ) -> Tuple[pd.DataFrame, TaxiDataPreprocessor]:
     """
     Convenience function to preprocess taxi data.
 
     Args:
+        :param copy: Whether to copy the input dataframe
         :param df: Input dataframe
         :param standardize_columns: Whether to standardize column names
         :param remove_outliers: Whether to remove outliers
         :param create_features: Whether to create engineered features
         :param target_column: Name of target variable
+        :param columns_to_keep: List of columns to keep after preprocessing
+        :param datetime_cols: List of datetime columns to parse
+        :param categorical_cols: List of categorical columns to handle as strings
+        :param numeric_cols: List of numeric columns to convert to numeric
 
     Returns:
         Tuple of (preprocessed dataframe, fitted preprocessor)
     """
     preprocessor = TaxiDataPreprocessor(
+        copy=copy,
         standardize_columns=standardize_columns,
         remove_outliers=remove_outliers,
         create_features=create_features,
         target_column=target_column,
+        columns_to_keep=columns_to_keep,
+        datetime_cols=datetime_cols,
+        categorical_cols=categorical_cols,
+        numeric_cols=numeric_cols,
     )
 
     df_processed = preprocessor.transform(df)
