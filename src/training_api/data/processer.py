@@ -107,14 +107,14 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Step 4: Remove invalid records
         df = self._remove_invalid_records(df)
 
-        # Step 5: Remove outliers (optional)
+        # Step 5: Create target variable (trip duration in seconds)
+        df = self._create_target(df)
+
+        # Step 6: Remove outliers (optional)
         df = self._remove_outliers(df)
 
-        # Step 6: Handle data types
+        # Step 7: Handle data types
         df = self._convert_data_types(df)
-
-        # Step 7: Create target variable (trip duration in seconds)
-        df = self._create_target(df)
 
         # Step 8: Handle missing values
         df = self._handle_missing_values(df)
@@ -167,7 +167,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         if "tpep_pickup_datetime" in df.columns and "tpep_dropoff_datetime" in df.columns:
             df[self.target_column] = (
-                df["dropoff_datetime"] - df["pickup_datetime"]
+                df["tpep_dropoff_datetime"] - df["tpep_pickup_datetime"]
             ).dt.total_seconds()
 
         return df
@@ -210,10 +210,6 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         if self.target_column in df.columns:
             df = df[df[self.target_column] > 0]
 
-        # Remove records with invalid passenger count
-        if "passenger_count" in df.columns:
-            df = df[(df["passenger_count"] >= 1) & (df["passenger_count"] <= 9)]
-
         # Remove records with invalid trip distance
         if "trip_distance" in df.columns:
             df = df[df["trip_distance"] > 0]
@@ -255,11 +251,11 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             return df
 
         # Temporal features
-        df["pickup_hour"] = df["pickup_datetime"].dt.hour
-        df["pickup_day"] = df["pickup_datetime"].dt.day
-        df["pickup_weekday"] = df["pickup_datetime"].dt.dayofweek
-        df["pickup_month"] = df["pickup_datetime"].dt.month
-        df["pickup_year"] = df["pickup_datetime"].dt.year
+        df["pickup_hour"] = df["tpep_pickup_datetime"].dt.hour
+        df["pickup_day"] = df["tpep_pickup_datetime"].dt.day
+        df["pickup_weekday"] = df["tpep_pickup_datetime"].dt.dayofweek
+        df["pickup_month"] = df["tpep_pickup_datetime"].dt.month
+        df["pickup_year"] = df["tpep_pickup_datetime"].dt.year
 
         # Is weekend
         df["is_weekend"] = (df["pickup_weekday"] >= 5).astype(int)
