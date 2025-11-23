@@ -29,24 +29,31 @@ def train_hatr(model_params):
     batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
-        if "trip_duration" not in processed_batch.columns:
-            logger.warning(
-                "Skipping batch: No 'trip_duration' after preprocessing (check schema)"
-            )
-            continue
+        # TODO this is a quick hack while we dont have the new data preprocessing (due to the dataset years shifting)
+        #if "trip_duration" not in processed_batch.columns:
+        #    logger.warning(
+        #        "Skipping batch: No 'trip_duration' after preprocessing (check schema)"
+        #    )
+        #    continue
 
         processed_batch.drop("vendor_id", axis=1, inplace=True, errors="ignore")
-        processed_batch.drop("rate_code", axis=1, inplace=True, errors="ignore")
-        processed_batch.drop("payment_type", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("pickup_longitude", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("pickup_latitude", axis=1, inplace=True, errors="ignore")
-        processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
-        processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
+        #processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
+        #processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
+
+        processed_batch["pickup_datetime"] = pd.to_datetime(processed_batch["pickup_datetime"])
+        processed_batch["dropoff_datetime"] = pd.to_datetime(processed_batch["dropoff_datetime"])
+        processed_batch["trip_duration"] = (
+                processed_batch["dropoff_datetime"] - processed_batch["pickup_datetime"]
+        ).dt.total_seconds()
+        processed_batch.drop(columns=["pickup_datetime", "dropoff_datetime"], inplace=True)
 
         for row in processed_batch.itertuples(index=False):
             y = getattr(row, "trip_duration", None)
             if y is None or pd.isna(y):
                 continue
+
 
             x = row._asdict()
             del x["trip_duration"]
