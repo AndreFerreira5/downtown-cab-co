@@ -104,8 +104,8 @@ def run_training(commit_sha: str, model_name: str, experiment_name: str):
     mlflow.set_experiment(experiment_name)
     model_params = [
         {"grace_period": gp, "model_selector_decay": msd}
-        for gp in [200, 100, 50]
-        for msd in [0.95, 0.6, 0.3]
+        for gp in [2000, 200, 50]
+        for msd in [0.99, 0.8, 0.3]
     ]
 
     best_model = None
