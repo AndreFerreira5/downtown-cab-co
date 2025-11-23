@@ -48,17 +48,17 @@ def train_hatr(model_params):
         #processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
         #processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
 
-        if not pd.api.types.is_datetime64_any_dtype(processed_batch["pickup_datetime"]):
-            processed_batch["pickup_datetime"] = pd.to_datetime(processed_batch["pickup_datetime"])
+        if not pd.api.types.is_datetime64_any_dtype(processed_batch["tpep_pickup_datetime"]):
+            processed_batch["tpep_pickup_datetime"] = pd.to_datetime(processed_batch["tpep_pickup_datetime"])
 
         if not pd.api.types.is_datetime64_any_dtype(processed_batch["dropoff_datetime"]):
             processed_batch["dropoff_datetime"] = pd.to_datetime(processed_batch["dropoff_datetime"])
 
         processed_batch["trip_duration"] = (
-                processed_batch["dropoff_datetime"] - processed_batch["pickup_datetime"]
+                processed_batch["dropoff_datetime"] - processed_batch["tpep_pickup_datetime"]
         ).dt.total_seconds()
 
-        processed_batch.drop(columns=["pickup_datetime", "dropoff_datetime"], inplace=True)
+        processed_batch.drop(columns=["tpep_pickup_datetime", "dropoff_datetime"], inplace=True)
 
         for row in processed_batch.itertuples(index=False):
             y = getattr(row, "trip_duration", None)
