@@ -37,23 +37,33 @@ def train_hatr(model_params):
         #    continue
 
         processed_batch.drop("vendor_id", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("passenger_count", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("payment_type", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("store_and_fwd_flag", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("ratecodeid", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("pickup_longitude", axis=1, inplace=True, errors="ignore")
         processed_batch.drop("pickup_latitude", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("pickup_location", axis=1, inplace=True, errors="ignore")
+        processed_batch.drop("dropoff_location", axis=1, inplace=True, errors="ignore")
         #processed_batch.drop("pickup_datetime", axis=1, inplace=True, errors="ignore")
         #processed_batch.drop("dropoff_datetime", axis=1, inplace=True, errors="ignore")
 
-        processed_batch["pickup_datetime"] = pd.to_datetime(processed_batch["pickup_datetime"])
-        processed_batch["dropoff_datetime"] = pd.to_datetime(processed_batch["dropoff_datetime"])
+        if not pd.api.types.is_datetime64_any_dtype(processed_batch["pickup_datetime"]):
+            processed_batch["pickup_datetime"] = pd.to_datetime(processed_batch["pickup_datetime"])
+
+        if not pd.api.types.is_datetime64_any_dtype(processed_batch["dropoff_datetime"]):
+            processed_batch["dropoff_datetime"] = pd.to_datetime(processed_batch["dropoff_datetime"])
+
         processed_batch["trip_duration"] = (
                 processed_batch["dropoff_datetime"] - processed_batch["pickup_datetime"]
         ).dt.total_seconds()
+
         processed_batch.drop(columns=["pickup_datetime", "dropoff_datetime"], inplace=True)
 
         for row in processed_batch.itertuples(index=False):
             y = getattr(row, "trip_duration", None)
             if y is None or pd.isna(y):
                 continue
-
 
             x = row._asdict()
             del x["trip_duration"]
