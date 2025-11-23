@@ -199,7 +199,7 @@ jobs:
         run: |
           curl -X POST "http://${{ secrets.MLFLOW_DEPLOY_SERVER_HOST }}:8080/train" \
             -H "Content-Type: application/json" \
-            -D '{"commit_sha": "${{ github.sha }}", "model_name": "${{ secrets.MODEL_NAME }}", "experiment_name": "${{ secrets.EXPERIMENT_NAME }}"}'
+            -d '{"commit_sha": "${{ github.sha }}", "model_name": "${{ secrets.MODEL_NAME }}", "experiment_name": "${{ secrets.EXPERIMENT_NAME }}"}'
 
 
   deploy-inference-api:
