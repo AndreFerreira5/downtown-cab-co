@@ -23,7 +23,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             copy: bool = True, # Copy dataframe to avoid modifying it in-place
             standardize_columns: bool = True,
             remove_outliers: bool = True,
-            create_features: bool = False,
+            create_additional_features: bool = False,
             target_column: str = "trip_duration",
             columns_to_keep: List[str] = None,
             datetime_cols: List[str] = None,
@@ -37,7 +37,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             copy: Whether to copy the input dataframe before processing
             standardize_columns: Whether to standardize column names
             remove_outliers: Whether to remove outlier records
-            create_features: Whether to create engineered features
+            create_additional_features: Whether to create additional engineered features
             target_column: Name of the target variable (trip duration)
             columns_to_keep: List of columns to keep after preprocessing
             datetime_cols: List of datetime columns to parse
@@ -49,12 +49,14 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         self.standardize_columns = standardize_columns
         self.remove_outliers = remove_outliers
-        self.create_features = create_features
+        self.create_additional_features = create_additional_features
         self.target_column = target_column
 
         self.column_mapping = {
             "vendorid": "VendorID",
             "vendor_id": "VendorID",
+            "pickup_datetime": "tpep_pickup_datetime",
+            "dropoff_datetime": "tpep_dropoff_datetime",
             "pulocationid": "PULocationID",
             "dolocationid": "DOLocationID",
             "pu_location_id": "PULocationID",
@@ -247,32 +249,36 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
     def _create_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create engineered features for modeling."""
 
-        if not self.create_features:
-            return df
-
         # Temporal features
         df["pickup_hour"] = df["tpep_pickup_datetime"].dt.hour
-        df["pickup_day"] = df["tpep_pickup_datetime"].dt.day
         df["pickup_weekday"] = df["tpep_pickup_datetime"].dt.dayofweek
-        df["pickup_month"] = df["tpep_pickup_datetime"].dt.month
-        df["pickup_year"] = df["tpep_pickup_datetime"].dt.year
 
-        # Is weekend
-        df["is_weekend"] = (df["pickup_weekday"] >= 5).astype(int)
+        # Additional engineered features
+        if self.create_additional_features:
 
-        # Rush hour flags (7-10 AM and 4-7 PM on weekdays)
-        df["is_morning_rush"] = (
-            (df["pickup_hour"].between(7, 10)) & (df["pickup_weekday"] < 5)
-        ).astype(int)
+            df["pickup_day"] = df["tpep_pickup_datetime"].dt.day
+            df["pickup_month"] = df["tpep_pickup_datetime"].dt.month
+            df["pickup_year"] = df["tpep_pickup_datetime"].dt.year
 
-        df["is_evening_rush"] = (
-            (df["pickup_hour"].between(16, 19)) & (df["pickup_weekday"] < 5)
-        ).astype(int)
+            # Is weekend
+            df["is_weekend"] = (df["pickup_weekday"] >= 5).astype(int)
 
-        # Night trip (10 PM - 6 AM)
-        df["is_night"] = ((df["pickup_hour"] >= 22) | (df["pickup_hour"] <= 6)).astype(
-            int
-        )
+            # Rush hour flags (7-10 AM and 4-7 PM on weekdays)
+            df["is_morning_rush"] = (
+                (df["pickup_hour"].between(7, 10)) & (df["pickup_weekday"] < 5)
+            ).astype(int)
+
+            df["is_evening_rush"] = (
+                (df["pickup_hour"].between(16, 19)) & (df["pickup_weekday"] < 5)
+            ).astype(int)
+
+            # Night trip (10 PM - 6 AM)
+            df["is_night"] = ((df["pickup_hour"] >= 22) | (df["pickup_hour"] <= 6)).astype(
+                int
+            )
+
+        # Drop original pickup and dropoff datetime columns
+        df = df.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"])
 
         logger.info(
             f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features"
@@ -315,7 +321,7 @@ def preprocess_taxi_data(
         copy=copy,
         standardize_columns=standardize_columns,
         remove_outliers=remove_outliers,
-        create_features=create_features,
+        create_additional_features=create_features,
         target_column=target_column,
         columns_to_keep=columns_to_keep,
         datetime_cols=datetime_cols,

@@ -57,13 +57,19 @@ def test_date_parsing(sample_raw_data):
     Test that integer microseconds are correctly parsed to datetime objects.
     Verifies that 1356999000000000 becomes a 2013 date.
     """
-    processor = TaxiDataPreprocessor()
+    processor = TaxiDataPreprocessor(create_additional_features=True)
     # We access the protected method to test isolation, or check output
-    df_processed = processor.transform(sample_raw_data)
+    df_time_parsed = processor._standardize_columns(sample_raw_data)
+    df_time_parsed = processor._drop_columns(df_time_parsed)
+    df_time_parsed = processor._parse_datetimes(df_time_parsed)
 
-    assert pd.api.types.is_datetime64_any_dtype(df_processed["tpep_pickup_datetime"])
+    # Check initial date parsing
+    assert pd.api.types.is_datetime64_any_dtype(df_time_parsed["tpep_pickup_datetime"])
+
+    df_time_parsed = processor._create_features(df_time_parsed)
+
     # Check specifically for the year 2013
-    assert df_processed["tpep_pickup_datetime"].dt.year.iloc[0] == 2013
+    assert df_time_parsed["pickup_year"][1] == 2013
 
 
 def test_trip_duration_calculation(sample_raw_data):
@@ -113,7 +119,7 @@ def test_missing_values_handling(sample_raw_data):
 
 def test_feature_engineering(sample_raw_data):
     """Test creation of time-based features."""
-    processor = TaxiDataPreprocessor(create_features=True, remove_outliers=False)
+    processor = TaxiDataPreprocessor(create_additional_features=True, remove_outliers=False)
     df = processor.transform(sample_raw_data)
 
     expected_features = [
