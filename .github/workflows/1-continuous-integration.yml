@@ -2,9 +2,9 @@ name: 1 - Continuous Integration
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "*" ] # TODO later change to main, this is for testing
   pull_request:
-    branches: [ main ]
+    branches: [ "*" ] # TODO later change to main, this is for testing
   workflow_dispatch:
 
 jobs:
