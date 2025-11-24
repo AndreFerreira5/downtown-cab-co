@@ -3,10 +3,6 @@ services:
     image: ghcr.io/andreferreira5/downtown-cab-co-training-api:${IMAGE_TAG:-production}
     container_name: training-api
     restart: on-failure
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:3030
-      - MODEL_NAME=nyc_taxi_duration
-      - MODEL_ALIAS=production
     ports:
       - "8080:8080"
     networks:
