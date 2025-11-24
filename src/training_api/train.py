@@ -136,7 +136,7 @@ def run_training(commit_sha: str, model_name: str, experiment_name: str):
 
             try:
                 registered_model = mlflow.register_model(
-                    model_uri=model_uri, name="HoeffdingAdaptiveTreeRegressor"
+                    model_uri=model_uri, name=model_name
                 )
                 logger.info(
                     f"Model registered successfully ({registered_model.version})"
@@ -145,11 +145,11 @@ def run_training(commit_sha: str, model_name: str, experiment_name: str):
                 from mlflow.tracking import MlflowClient
 
                 client = MlflowClient()
-                client.set_registered_model_alias(
-                    name=model_name,
-                    alias="staging",
-                    version=registered_model.version,
-                )
+                #client.set_registered_model_alias(
+                #    name=model_name,
+                #    alias="staging",
+                #    version=registered_model.version,
+                #)
                 client.set_registered_model_alias(
                     name=model_name,
                     alias=commit_sha,

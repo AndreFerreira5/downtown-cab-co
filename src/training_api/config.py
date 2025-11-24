@@ -5,6 +5,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def configure_mlflow():
-    MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:3030")
-    mlflow.set_tracking_uri(MLFLOW_URI)
+class TrainingConfig:
+    def __init__(self):
+        self.COMMIT_SHA = os.getenv("COMMIT_SHA")
+        if not self.COMMIT_SHA:
+            raise EnvironmentError("Missing required env var: COMMIT_SHA")
+
+        self.MODEL_NAME = os.getenv('MLFLOW_MODEL_NAME')
+        if not self.MODEL_NAME:
+            raise EnvironmentError("Missing required env var: MLFLOW_MODEL_NAME")
+
+        self.EXP_NAME = os.getenv('MLFLOW_EXPERIMENT_NAME')
+        if not self.EXP_NAME:
+            raise EnvironmentError("Missing required env var: MLFLOW_EXPERIMENT_NAME")
+
+        self.MLFLOW_URI = os.getenv('MLFLOW_TRACKING_URI')
+        if not self.EXP_NAME:
+            raise EnvironmentError("Missing required env var: MLFLOW_EXPERIMENT_NAME")
+        mlflow.set_tracking_uri(self.MLFLOW_URI)
