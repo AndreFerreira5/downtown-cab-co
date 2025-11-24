@@ -7,6 +7,11 @@ on:
     branches: [ "*" ] # TODO later change to main, this is for testing
   workflow_dispatch:
 
+env:
+  DOCKER_REGISTRY: ghcr.io
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   check-changes:
     runs-on: ubuntu-latest
