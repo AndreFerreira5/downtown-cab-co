@@ -1,8 +1,8 @@
 services:
   mlflow:
-    image: ghcr.io/andreferreira5/downtown-cab-co-mlflow-server:latest
+    image: ghcr.io/andreferreira5/downtown-cab-co-mlflow-server:${IMAGE_TAG:-production}
     container_name: mlflow
-    restart: on-failure
+    restart: always
     environment:
       - BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
     ports:
@@ -13,21 +13,7 @@ services:
     networks:
       - mlops-net
 
-  training_api:
-    image: ghcr.io/andreferreira5/downtown-cab-co-training-api:latest
-    container_name: training-api
-    restart: on-failure
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:3030
-      - MODEL_NAME=nyc_taxi_duration
-      - MODEL_ALIAS=production
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mlflow
-    networks:
-      - mlops-net
-
 networks:
   mlops-net:
+    name: mlops-net
     driver: bridge
