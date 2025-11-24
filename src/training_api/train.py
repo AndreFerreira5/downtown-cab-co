@@ -29,40 +29,6 @@ def train_hatr(model_params):
     batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
-        # TODO this is a quick hack while we dont have the new data preprocessing (due to the dataset years shifting)
-        #if "trip_duration" not in processed_batch.columns:
-        #    logger.warning(
-        #        "Skipping batch: No 'trip_duration' after preprocessing (check schema)"
-        #    )
-        #    continue
-
-        cols_to_drop = [
-            "VendorID",
-            "passenger_count",
-            "payment_type",
-            "store_and_fwd_flag",
-            "RatecodeID",
-            "PULocationID",
-            "DOLocationID",
-            "pickup_longitude",
-            "pickup_latitude",
-            "dropoff_longitude",
-            "dropoff_latitude"
-        ]
-        processed_batch.drop(columns=cols_to_drop, inplace=True, errors="ignore")
-
-        if not pd.api.types.is_datetime64_any_dtype(processed_batch["tpep_pickup_datetime"]):
-            processed_batch["tpep_pickup_datetime"] = pd.to_datetime(processed_batch["tpep_pickup_datetime"])
-
-        if not pd.api.types.is_datetime64_any_dtype(processed_batch["tpep_dropoff_datetime"]):
-            processed_batch["tpep_dropoff_datetime"] = pd.to_datetime(processed_batch["tpep_dropoff_datetime"])
-
-        processed_batch["trip_duration"] = (
-                processed_batch["tpep_dropoff_datetime"] - processed_batch["tpep_pickup_datetime"]
-        ).dt.total_seconds()
-
-        processed_batch.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"], inplace=True)
-
         for row in processed_batch.itertuples(index=False):
             y = getattr(row, "trip_duration", None)
             if y is None or pd.isna(y) or y<=0:
@@ -78,13 +44,6 @@ def train_hatr(model_params):
 
         # log each 10 batches to avoid overhead
         if batch_count % 5 == 0:
-            # checkpoint_path = os.path.join(
-            #     checkpoint_dir,
-            #     f"hatr_{model_params['grace_period']}_{model_params['model_selector_decay']}_checkpoint_{batch_count}.pkl",
-            # )
-            # with open(checkpoint_path, "wb") as f:
-            #     pickle.dump(model, f)
-            # mlflow.log_artifact(checkpoint_path)
             mlflow.log_param("grace_period", model_params["grace_period"])
             mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
             mlflow.log_metrics(
