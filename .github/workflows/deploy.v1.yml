@@ -109,7 +109,8 @@ jobs:
 
 
   deploy-mlflow-and-training-api:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    timeout-minutes: 4320
     permissions:
       contents: read
       packages: read
