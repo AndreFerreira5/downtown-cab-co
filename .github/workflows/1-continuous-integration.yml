@@ -108,7 +108,7 @@ jobs:
           file: src/training_api/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training-api:${{ github.sha }}
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ github.sha }}
 
   build-inference-api-container:
     if: steps.filter.outputs.inference == 'true'
