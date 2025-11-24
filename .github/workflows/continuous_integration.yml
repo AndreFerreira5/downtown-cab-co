@@ -49,6 +49,7 @@ jobs:
         run: uv run pytest
 
   build-mlflow-container:
+    if: steps.filter.outputs.mlflow == 'true'
     name: Build MLFlow Docker Container
     runs-on: ubuntu-latest
     needs: unit-test
@@ -79,6 +80,7 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:${{ github.sha }}
 
   build-training-api-container:
+    if: steps.filter.outputs.training == 'true'
     name: Build Training API Docker Container
     runs-on: ubuntu-latest
     needs: unit-test
@@ -109,6 +111,7 @@ jobs:
           tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training-api:${{ github.sha }}
 
   build-inference-api-container:
+    if: steps.filter.outputs.inference == 'true'
     name: Build Inference API Docker Container
     runs-on: ubuntu-latest
     permissions:
