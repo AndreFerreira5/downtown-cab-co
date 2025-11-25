@@ -1,8 +1,4 @@
 import logging
-import os
-import uvicorn
-import mlflow
-import mlflow.pyfunc
 from .train import run_training
 from .config import TrainingConfig
 from .logging_config import configure_logging

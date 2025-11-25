@@ -15,4 +15,4 @@ ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 
-CMD ["uvicorn", "src.training_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uv", "run", "main.py"]
