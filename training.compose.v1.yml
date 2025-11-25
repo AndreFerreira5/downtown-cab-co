@@ -1,0 +1,13 @@
+services:
+  training_api:
+    image: ghcr.io/andreferreira5/downtown-cab-co-training-api:${IMAGE_TAG:-production}
+    container_name: training-api
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+    external: true
