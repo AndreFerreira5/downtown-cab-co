@@ -18,6 +18,8 @@ def train_hatr(model_params):
     data_loader = DataLoader("training/", download_dataset=True)
 
     mlflow.start_run()
+    mlflow.log_param("grace_period", model_params["grace_period"])
+    mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
 
     model = tree.HoeffdingAdaptiveTreeRegressor(**model_params)
     mae = river_metrics.MAE()
@@ -31,7 +33,7 @@ def train_hatr(model_params):
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
         for row in processed_batch.itertuples(index=False):
             y = getattr(row, "trip_duration", None)
-            if y is None or pd.isna(y) or y<=0:
+            if y is None or pd.isna(y) or y <= 0:
                 continue
 
             x = row._asdict()
@@ -44,8 +46,6 @@ def train_hatr(model_params):
 
         # log each 10 batches to avoid overhead
         if batch_count % 5 == 0:
-            mlflow.log_param("grace_period", model_params["grace_period"])
-            mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
             mlflow.log_metrics(
                 {
                     "mae": mae.get(),
@@ -66,13 +66,10 @@ def train_hatr(model_params):
     with open(final_model_path, "wb") as f:
         pickle.dump(model, f)
     mlflow.log_artifact(final_model_path)
-    mlflow.log_param("grace_period", model_params["grace_period"])
-    mlflow.log_param("model_selector_decay", model_params["model_selector_decay"])
     final_metrics = {
         "final_mae": mae.get(),
         "final_rmse": rmse.get(),
     }
-    mlflow.log_metrics(final_metrics)
     run_id = mlflow.active_run().info.run_id
     mlflow.end_run()
     # TODO log some plots to mlflow
@@ -145,11 +142,11 @@ def run_training(commit_sha: str, model_name: str, experiment_name: str):
                 from mlflow.tracking import MlflowClient
 
                 client = MlflowClient()
-                #client.set_registered_model_alias(
+                # client.set_registered_model_alias(
                 #    name=model_name,
                 #    alias="staging",
                 #    version=registered_model.version,
-                #)
+                # )
                 client.set_registered_model_alias(
                     name=model_name,
                     alias=commit_sha,
