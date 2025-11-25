@@ -47,7 +47,7 @@ jobs:
         run: |
           docker run -d \
             -p 8080:8080 \
-            --name training-container \ 
+            --name training-container \
             -e COMMIT_SHA=${{ env.COMMIT_SHA }} \
             -e MLFLOW_TRACKING_URI=${{ env.MLFLOW_TRACKING_URI }} \
             -e MLFLOW_EXPERIMENT_NAME=${{ env.MLFLOW_EXPERIMENT_NAME }} \
