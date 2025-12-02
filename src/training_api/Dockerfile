@@ -13,4 +13,4 @@ ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 
-CMD ["uv", "run", "python", "-m", "src.training_api.main"]
+CMD ["python", "-m", "src.training_api.main"]
