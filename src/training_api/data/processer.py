@@ -2,7 +2,7 @@
 
 import logging
 from typing import Tuple, List
-
+import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -276,6 +276,16 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             df["is_night"] = ((df["pickup_hour"] >= 22) | (df["pickup_hour"] <= 6)).astype(
                 int
             )
+
+            # linear trend (the slope)
+            df["date_int"] = df["tpep_pickup_datetime"].dt.to_period("D").astype("int64")
+
+            # seasonality (the wave)
+            day_of_year = df["tpep_pickup_datetime"].dt.dayofyear
+            df["sin_time"] = np.sin(2 * np.pi * day_of_year / 365.25)
+            df["cos_time"] = np.cos(2 * np.pi * day_of_year / 365.25)
+
+
 
         # Drop original pickup and dropoff datetime columns
         df = df.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"])

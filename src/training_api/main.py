@@ -1,5 +1,6 @@
 import logging
 from .train import run_training
+from .test import test_models
 from .config import TrainingConfig
 from .logging_config import configure_logging
 
@@ -18,4 +19,5 @@ def train(training_config: TrainingConfig):
 
 
 if __name__ == "__main__":
-    train(TrainingConfig())
+    #train(TrainingConfig())
+    test_models()

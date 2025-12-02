@@ -5,7 +5,10 @@ description = "API that trains models using mlflow"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "lightgbm>=4.6.0",
     "mlflow>=3.5.1",
+    "numpy>=2.3.4",
     "pandas>=2.2",
     "river>=0.22.0",
+    "scikit-learn>=1.7.2",
 ]

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class DataLoader:
     """Load parquet files one at a time on demand."""
 
-    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False):
+    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False, years_to_download=["2011", "2012"]):
         """
         Initialize the data loader.
 
@@ -23,7 +23,7 @@ class DataLoader:
             batch_size: Number of rows to load per batch
         """
         if download_dataset:
-            DataDownloader().download()
+            DataDownloader(years_to_download=years_to_download, dest_folder=data_dir).download()
         self.data_dir = Path(data_dir)
         self.batch_size = batch_size
         self.parquet_files = sorted(glob.glob(str(self.data_dir / "*.parquet")))
