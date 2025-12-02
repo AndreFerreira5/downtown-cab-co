@@ -13,4 +13,8 @@ ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get -y install curl
+RUN apt-get install libgomp1
+
 CMD ["python", "-m", "src.training_api.main"]
