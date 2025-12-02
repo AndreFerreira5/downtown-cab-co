@@ -9,19 +9,20 @@ from .data.loader import DataLoader
 from .data.processer import preprocess_taxi_data
 
 
-def test_predictor(trend_model, booster_model):
-    data_loader = DataLoader(data_dir="testing/", download_dataset=False, batch_size=10000, years_to_download=["2013"])
+def test_predictor(trend_model, booster_model, download_dataset=False):
+    data_loader = DataLoader(data_dir="testing/", download_dataset=download_dataset, batch_size=50_000, years_to_download=["2013"])
 
     y_true = []
     y_pred = []
 
     print("--- Running Inference ---")
-    batches_to_process = 50
+    batches_to_process = 1_000
 
     batch_count = 0
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
         if batch_count >= batches_to_process:
             break
+        batch = batch.sample(frac=0.075, random_state=42)
 
         # 1. Preprocess (Must remove outliers to compare apples-to-apples)
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True, remove_outliers=True)
@@ -72,10 +73,9 @@ def test_predictor(trend_model, booster_model):
     print(f"R²:   {r2:.4f}")
     print("=" * 40)
 
-    return rmse, mae, r2
+    fig = plot_performance(y_true, y_pred)
 
-    # --- FANCY PLOTTING ---
-    #plot_performance(y_true, y_pred)
+    return rmse, mae, r2, fig
 
 
 def plot_performance(y_true, y_pred):
@@ -115,7 +115,7 @@ def plot_performance(y_true, y_pred):
 
     # Plot 4: Zoomed Time Series (First 100 samples)
     # Good for visual sanity check
-    subset_n = 100
+    subset_n = 35
     x_range = range(subset_n)
     axes[1, 1].plot(x_range, y_true[:subset_n], label="Actual", color='gray', alpha=0.7)
     axes[1, 1].plot(x_range, y_pred[:subset_n], label="Predicted", color='blue', linewidth=2)
@@ -125,6 +125,8 @@ def plot_performance(y_true, y_pred):
     axes[1, 1].legend()
 
     plt.tight_layout()
-    plt.savefig("model_performance_dashboard.png")
+    #plt.savefig("model_performance_dashboard.png")
     print("Graphs saved to 'model_performance_dashboard.png'")
-    plt.show()
+    #plt.show()
+
+    return fig
