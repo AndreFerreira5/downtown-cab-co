@@ -197,7 +197,7 @@ def prepare_in_memory_data(sample_rate=0.01):
     """
     logger.info(f"--- PHASE 1: Loading & Preprocessing ({sample_rate * 100}%) ---")
 
-    data_loader = DataLoader("training/", batch_size=500_000, download_dataset=False)
+    data_loader = DataLoader("training/", batch_size=500_000, download_dataset=True)
     processed_chunks = []
 
     # load and preprocess into RAM
@@ -247,7 +247,7 @@ def get_validation_data(model_a, sample_rate=0.05):
     Loads 2013 validation data into RAM for fast scoring.
     """
     logger.info("--- PHASE 4: Loading Validation Data ---")
-    data_loader = DataLoader("testing/", batch_size=500_000, years_to_download=["2013"], download_dataset=False)
+    data_loader = DataLoader("testing/", batch_size=500_000, years_to_download=["2013"], download_dataset=True)
 
     X_list = []
     y_list = []
