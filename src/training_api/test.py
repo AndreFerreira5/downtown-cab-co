@@ -12,7 +12,7 @@ def test_models():
     with open("model_b.pkl", "rb") as f:
         model_b = pickle.load(f)
 
-    data_loader = DataLoader(data_dir="testing/", download_dataset=False, batch_size=50, years_to_download=["2013"])
+    data_loader = DataLoader(data_dir="testing/", download_dataset=True, batch_size=200, years_to_download=["2013"])
 
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True, remove_outliers=True)
@@ -52,4 +52,4 @@ def test_models():
             print(f"  FINAL PREDICTION: {final:.2f} sec ({final / 60:.2f} min)")
             print(f"  REAL DURATION: {real_duration[i]:.2f} sec")
 
-        exit(0)
+        exit(0) # allow only one batch for testing purposes

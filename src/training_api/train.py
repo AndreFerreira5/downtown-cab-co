@@ -144,7 +144,7 @@ def plot_model_anatomy(model, daily_stats):
     plt.show()
 
 def run_training(commit_sha: str, model_name: str, experiment_name: str):
-    data_loader = DataLoader("training/", batch_size=1_000_000, download_dataset=False)
+    data_loader = DataLoader("training/", batch_size=200_000, download_dataset=True)
 
     daily_stats_accumulator = []
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
