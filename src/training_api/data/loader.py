@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class DataLoader:
     """Load parquet files one at a time on demand."""
 
-    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False, years_to_download=["2011", "2012"]):
+    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False, years_to_download=["2011", "2012"], verbose: bool = False):
         """
         Initialize the data loader.
 
@@ -35,6 +35,7 @@ class DataLoader:
         self._current_file_idx = 0
         self._current_row_idx = 0
         self._current_file_data: Optional[pd.DataFrame] = None
+        self.verbose = verbose
 
     def load_next_batch(self) -> Optional[pd.DataFrame]:
         """
@@ -51,7 +52,7 @@ class DataLoader:
         # Load new file if needed
         if self._current_file_data is None:
             file_path = self.parquet_files[self._current_file_idx]
-            logger.info(f"Loading file {self._current_file_idx + 1}/{len(self.parquet_files)}: {file_path}")
+            if self.verbose: logger.info(f"Loading file {self._current_file_idx + 1}/{len(self.parquet_files)}: {file_path}")
             self._current_file_data = pd.read_parquet(file_path)
             self._current_row_idx = 0
 
@@ -65,7 +66,7 @@ class DataLoader:
 
         # Move to next file if current is exhausted
         if self._current_row_idx >= len(self._current_file_data):
-            logger.info(f"Finished processing file {self._current_file_idx + 1}/{len(self.parquet_files)}")
+            if self.verbose: logger.info(f"Finished processing file {self._current_file_idx + 1}/{len(self.parquet_files)}")
             # Delete current file data from memory
             del self._current_file_data
             self._current_file_data = None

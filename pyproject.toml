@@ -16,6 +16,8 @@ dependencies = [
     "httpx>=0.28.1",
     "httpsx>=0.0.1",
     "lightgbm>=4.6.0",
+    "seaborn>=0.13.2",
+    "holidays>=0.86",
 ]
 
 [tool.uv.workspace]

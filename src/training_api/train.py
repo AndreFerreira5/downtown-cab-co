@@ -10,6 +10,8 @@ import gc
 import matplotlib.pyplot as plt
 import numpy as np
 import lightgbm as lgb
+from .test import test_predictor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from collections import namedtuple
 
@@ -143,30 +145,51 @@ def plot_model_anatomy(model, daily_stats):
     plt.savefig("model_a_anatomy.png")
     plt.show()
 
-def run_training(commit_sha: str, model_name: str, experiment_name: str):
-    data_loader = DataLoader("training/", batch_size=200_000, download_dataset=True)
 
+
+def train_ridge_regressor(batch_sampling_perc=0.075, random_state=42, batch_size=1_000_000):
+    data_loader = DataLoader("training/", batch_size=batch_size, download_dataset=False)
     daily_stats_accumulator = []
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+        if len(batch) > 1000:
+            batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True, copy=False)
-        chunk_sums = processed_batch.groupby(['date_int', 'sin_time', 'cos_time'])['trip_duration'].agg(['sum', 'count']).reset_index()
+        chunk_sums = processed_batch.groupby(['date_int', 'sin_time', 'cos_time'])['trip_duration'].agg(
+            ['sum', 'count']).reset_index()
         daily_stats_accumulator.append(chunk_sums)
 
         del processed_batch
         gc.collect()
 
-    print(daily_stats_accumulator)
-
     plot_df = pd.concat(daily_stats_accumulator)
-
     final_stats = plot_df.groupby(['date_int', 'sin_time', 'cos_time'])[['sum', 'count']].sum().reset_index()
-
     final_stats['avg_duration'] = final_stats['sum'] / final_stats['count']
 
-    model_a = Ridge(alpha=1.0)
+    regressor = Ridge(alpha=1.0)
     X_trend = final_stats[['date_int', 'sin_time', 'cos_time']]
     y_trend = final_stats['avg_duration']
-    model_a.fit(X_trend, y_trend)
+    regressor.fit(X_trend, y_trend)
+    return regressor
+
+def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, random_state=42, batch_size=1_000_000):
+    if not model_params:
+        model_params = {
+            'objective': 'tweedie',
+            'tweedie_variance_power': 1.6,
+            'metric': 'tweedie',
+            'boosting_type': 'gbdt',
+            'force_col_wise': True,
+            'learning_rate': 0.1,
+            'num_leaves': 63,
+            'min_data_in_leaf': 50,
+            'feature_fraction': 0.8,
+            'bagging_freq': 1,
+            'bagging_fraction': 0.7,
+            'lambda_l1': 2.0,
+            'lambda_l2': 2.0,
+            'n_jobs': -1,
+            'verbose': -1
+        }
 
     """
     plot_model_anatomy(model_a, plot_df)
@@ -196,93 +219,250 @@ def run_training(commit_sha: str, model_name: str, experiment_name: str):
     plt.show()
     """
 
-    with open(f"model_a.pkl", "wb") as f:
-        pickle.dump(model_a, f)
-    mlflow.log_artifact(f"model_a.pkl")
+    #with open(f"model_a.pkl", "wb") as f:
+    #    pickle.dump(model_a, f)
+    #mlflow.log_artifact(f"model_a.pkl")
 
     booster = None
-    params = {
-        'objective': 'regression',
-        'metric': 'rmse',
-        'boosting_type': 'gbdt',
-        'learning_rate': 0.05,  # conservative learning rate for incremental
-        'num_leaves': 31,
-        'feature_fraction': 0.8,
-        'bagging_fraction': 0.8,
-        'n_jobs': -1,
-        'verbose': -1
-    }
-
+    data_loader = DataLoader("training/", batch_size=batch_size, download_dataset=False)
     data_loader.reset()
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+        if len(batch) > 1000:
+            batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
         trend_features = processed_batch[['date_int', 'sin_time', 'cos_time']]
-        baseline_preds = model_a.predict(trend_features)
+        baseline_preds = regressor_model.predict(trend_features)
 
-        y_residual = processed_batch['trip_duration'] - baseline_preds
+        # safety clamp, force baseline to be at least 1 second
+        baseline_preds = np.maximum(baseline_preds, 1.0)
+
+        #y_residual = processed_batch['trip_duration'] - baseline_preds
+        y_ratio = processed_batch['trip_duration'] / baseline_preds
         drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
         X_residual = processed_batch.drop(columns=drop_cols, errors='ignore').select_dtypes(include=['number', 'category'])
 
-        train_set = lgb.Dataset(X_residual, y_residual, free_raw_data=True)
+        train_set = lgb.Dataset(X_residual, y_ratio, free_raw_data=True)
 
         booster = lgb.train(
-            params,
+            model_params,
             train_set,
-            num_boost_round=50,
+            num_boost_round=3,
             init_model=booster,
             keep_training_booster=True
         )
 
-        del processed_batch, X_residual, y_residual, train_set
+        del processed_batch, X_residual, y_ratio, train_set
         gc.collect()
 
-    print("Training Complete. Saving Model B...")
-    with open(f"model_b.pkl", "wb") as f:
-        pickle.dump(booster, f)
-    mlflow.log_artifact(f"model_b.pkl")
+    return booster
+
+    #print("Training Complete. Saving Model B...")
+    #with open(f"model_b.pkl", "wb") as f:
+    #    pickle.dump(booster, f)
+    #mlflow.log_artifact(f"model_b.pkl")
 
 
+def prepare_in_memory_data(sample_rate=0.01):
+    """
+    Loads, Preprocesses, and Caches data ONE time for the entire grid search.
+    Returns in-memory DataFrames ready for LightGBM.
+    """
+    logger.info(f"--- PHASE 1: Loading & Preprocessing ({sample_rate * 100}%) ---")
 
-def run_training_(commit_sha: str, model_name: str, experiment_name: str):
-    mlflow.set_experiment(experiment_name)
-    model_params = [
-        {"grace_period": gp, "model_selector_decay": msd}
-        for gp in [2000, 200, 50]
-        for msd in [0.99, 0.8, 0.3]
+    data_loader = DataLoader("training/", batch_size=500_000, download_dataset=True)
+    processed_chunks = []
+
+    # 1. Load and Preprocess into RAM
+    while (batch := data_loader.load_next_batch()) is not None:
+        if len(batch) > 1000:
+            batch = batch.sample(frac=sample_rate, random_state=42)
+
+        # Preprocess features
+        processed, _ = preprocess_taxi_data(batch, create_features=True, copy=False)
+        processed_chunks.append(processed)
+
+        del batch
+
+    # Create the Master DataFrame (In RAM)
+    # 1% of 300M rows = 3M rows. ~300MB RAM. Very safe.
+    full_df = pd.concat(processed_chunks, ignore_index=True)
+    logger.info(f"Data Loaded. Shape: {full_df.shape}")
+
+    # 2. Train Model A (Trend) ONCE
+    logger.info("--- PHASE 2: Training Trend Model (Model A) ---")
+
+    # Aggregate for Ridge
+    daily_stats = full_df.groupby(['date_int', 'sin_time', 'cos_time'])['trip_duration'].agg(
+        ['sum', 'count']).reset_index()
+    daily_stats['avg_duration'] = daily_stats['sum'] / daily_stats['count']
+
+    model_a = Ridge(alpha=1.0)
+    model_a.fit(daily_stats[['date_int', 'sin_time', 'cos_time']], daily_stats['avg_duration'])
+
+    # 3. Calculate Ratios (Targets for LightGBM)
+    logger.info("--- PHASE 3: Calculating Ratios ---")
+
+    trend_features = full_df[['date_int', 'sin_time', 'cos_time']]
+    baseline = model_a.predict(trend_features)
+    baseline = np.maximum(baseline, 1.0)  # Safety
+
+    y_ratio = full_df['trip_duration'] / baseline
+
+    # Prepare X for LightGBM (Drop non-features)
+    drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
+    X_train = full_df.drop(columns=drop_cols, errors='ignore').select_dtypes(include=['number', 'category'])
+
+    return model_a, X_train, y_ratio
+
+
+def get_validation_data(model_a, sample_rate=0.05):
+    """
+    Loads 2013 validation data into RAM for fast scoring.
+    """
+    logger.info("--- PHASE 4: Loading Validation Data ---")
+    data_loader = DataLoader("testing/", batch_size=500_000, years_to_download=["2013"], download_dataset=True)
+
+    X_list = []
+    y_list = []
+    trend_list = []
+
+    while (batch := data_loader.load_next_batch()) is not None:
+        if len(batch) > 1000:
+            batch = batch.sample(frac=sample_rate, random_state=55)
+
+        processed, _ = preprocess_taxi_data(batch, create_features=True, remove_outliers=True)
+        if processed.empty: continue
+
+        # Store Truth
+        y_list.append(processed['trip_duration'].values)
+
+        # Store Trend Prediction
+        trend_features = processed[['date_int', 'sin_time', 'cos_time']]
+        trend_val = model_a.predict(trend_features)
+        trend_val = np.maximum(trend_val, 1.0)
+        trend_list.append(trend_val)
+
+        # Store Features
+        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
+        X = processed.drop(columns=drop_cols, errors='ignore').select_dtypes(include=['number', 'category'])
+        X_list.append(X)
+
+    X_val = pd.concat(X_list, ignore_index=True)
+    y_val = np.concatenate(y_list)
+    trend_val = np.concatenate(trend_list)
+
+    return X_val, y_val, trend_val
+
+
+def run_hyperparameter_tuning():
+    #mlflow.set_experiment(experiment_name)
+
+    model_a, X_train, y_train = prepare_in_memory_data(sample_rate=0.01)
+    # 2. PREPARE VALIDATION ONCE
+    X_val, y_val_true, val_trend = get_validation_data(model_a, sample_rate=0.05)
+
+
+    model_params_grid = [
+        {
+        'objective': 'tweedie',
+        'tweedie_variance_power': tvp,
+        'metric': 'tweedie',
+        'boosting_type': 'gbdt',
+        'force_col_wise': True,
+        'learning_rate': lr,
+        'num_leaves': 255,
+        'min_data_in_leaf': 20,
+        'feature_fraction': 0.8,
+        'bagging_freq': 1,
+        'bagging_fraction': 0.7,
+        'lambda_l1': 0.1,
+        'lambda_l2': 0.1,
+        'n_jobs': -1,
+        'verbose': -1
+        }
+        for tvp in [1.15, 1.5, 1.75]
+        for lr in [0.01, 0.05, 0.1]
     ]
 
-    best_model = None
+    best_rmse = float('inf')
+    best_params = None
+
+    logger.info(f"Starting Grid Search with {len(model_params_grid)} combinations...")
+
+    # 4. FAST LOOP (In-Memory)
+    for i, params in enumerate(model_params_grid):
+        logger.info(
+            f"Testing Config {i + 1}/{len(model_params_grid)}: Power={params['tweedie_variance_power']}, LearningRate={params['learning_rate']}")
+
+        # Create Dataset Object (Zero-copy)
+        train_set = lgb.Dataset(X_train, y_train, free_raw_data=False)
+
+        # Train (Fast because data is in RAM)
+        booster = lgb.train(
+            params,
+            train_set,
+            num_boost_round=100,
+        )
+
+        # Predict on Validation
+        ratio_pred = booster.predict(X_val)
+        final_pred = val_trend * ratio_pred  # Re-combine
+
+        # Score
+        rmse = np.sqrt(mean_squared_error(y_val_true, final_pred))
+        mae = mean_absolute_error(y_val_true, final_pred)
+
+        logger.info(f"--> Result: RMSE={rmse:.4f}, MAE={mae:.4f}")
+
+        if rmse < best_rmse:
+            best_rmse = rmse
+            best_params = params
+            logger.info("   *** NEW BEST ***")
+
+        # Cleanup
+        del train_set, booster
+        gc.collect()
+
+    exit(0)
+
+    best_models = None
     best_metrics = None
     best_run_id = None
     best_params = None
 
-    metric_to_track = "final_rmse"
-    best_metric_value = float("inf")
+    #metric_to_track = "final_rmse"
+    best_rmse_value = float("inf")
 
+    regressor = train_ridge_regressor(batch_sampling_perc=0.01)
     # train all model combinations
     for mp in model_params:
         logger.info(f"Training with params: {mp}")
-        model, final_metrics, run_id = train_hatr(mp)
+        #model, final_metrics, run_id = train_lightgbm(mp)
+        booster_model = train_lightgbm(regressor_model=regressor, model_params=mp, batch_sampling_perc=0.01)
+        current_rmse, current_mae, current_r2 = test_predictor(regressor, booster_model)
 
         # compare and track best model
-        current_metric = final_metrics[metric_to_track]
+        #current_metric = final_metrics[metric_to_track]
 
-        if current_metric < best_metric_value:
-            logger.info(f"New best model! {metric_to_track}: {current_metric:.4f}")
-            best_metric_value = current_metric
-            best_model = model
-            best_metrics = final_metrics
-            best_run_id = run_id
+        if current_rmse < best_rmse_value:
+            logger.info(f"New best model! RMSE: {current_rmse:.4f}")
+            best_metric_value = current_rmse
+            best_models = [regressor, booster_model]
+            best_metrics = [current_rmse, current_mae, current_r2]
+            #best_run_id = run_id
             best_params = mp
         else:
             logger.info(
-                f"Model not better. Best {metric_to_track}: {best_metric_value:.4f}, Current: {current_metric:.4f}"
+                f"Model not better. Best RMSE: {best_rmse_value:.4f}, Current: {current_rmse:.4f}"
             )
 
+    logger.info("best params!: ", best_params)
+    exit(0)
+
     # register best model to MLflow Model Registry
-    if best_model is not None:
+    if best_models is not None:
         logger.info(
-            f"\nRegistering best model with {metric_to_track}: {best_metric_value:.4f}"
+            f"\nRegistering best model with RMSE: {best_metric_value:.4f}"
         )
 
         # save best model

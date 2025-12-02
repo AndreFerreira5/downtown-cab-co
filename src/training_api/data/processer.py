@@ -5,6 +5,7 @@ from typing import Tuple, List
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+import holidays
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +30,8 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             datetime_cols: List[str] = None,
             categorical_cols: List[str] = None,
             numeric_cols: List[str] = None,
+            years: List[int] = [2011, 2012],
+            verbose: bool = False,
     ):
         """
         Initialize the preprocessor.
@@ -80,6 +83,8 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         self.numeric_cols = numeric_cols if numeric_cols else [
             "passenger_count", "trip_distance"
         ]
+        self.us_holidays = holidays.US(years=years)
+        self.verbose  = verbose
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -95,7 +100,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Optionally copy the dataframe to avoid modifying in-place
         df = X.copy(deep=self.copy) if self.copy else X
 
-        logger.info(f"Starting preprocessing with {len(df)} records")
+        if self.verbose: logger.info(f"Starting preprocessing with {len(df)} records")
 
         # Step 1: Handle column name variations (optional)
         df = self._standardize_columns(df)
@@ -124,7 +129,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Step 9: Feature engineering (optional)
         df = self._create_features(df)
 
-        logger.info(f"Preprocessing complete with {len(df)} records")
+        if self.verbose: logger.info(f"Preprocessing complete with {len(df)} records")
 
         return df
 
@@ -147,7 +152,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Log all unused columns found
         dropped_columns = [col for col in df.columns if col not in self.columns_to_keep]
-        logger.info(f"Dropped {len(dropped_columns)} unused columns: {dropped_columns}")
+        if self.verbose: logger.info(f"Dropped {len(dropped_columns)} unused columns: {dropped_columns}")
 
         # Drop unused columns (even with unstardardized names)
         df = df[self.columns_to_keep]
@@ -216,7 +221,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         if "trip_distance" in df.columns:
             df = df[df["trip_distance"] > 0]
 
-        logger.info(f"Removed {initial_count - len(df)} invalid records")
+        if self.verbose: logger.info(f"Removed {initial_count - len(df)} invalid records")
 
         return df
 
@@ -242,7 +247,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             df = df[(df["speed_mph"] >= 0.5) & (df["speed_mph"] <= 65)]
             df = df.drop(columns=["speed_mph"])
 
-        logger.info(f"Removed {initial_count - len(df)} outlier records")
+        if self.verbose: logger.info(f"Removed {initial_count - len(df)} outlier records")
 
         return df
 
@@ -277,6 +282,10 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
                 int
             )
 
+            df['is_holiday'] = df['tpep_pickup_datetime'].dt.date.apply(
+                lambda x: 1 if x in self.us_holidays else 0
+            )
+
             # linear trend (the slope)
             df["date_int"] = df["tpep_pickup_datetime"].dt.to_period("D").astype("int64")
 
@@ -290,7 +299,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         # Drop original pickup and dropoff datetime columns
         df = df.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"])
 
-        logger.info(
+        if self.verbose: logger.info(
             f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features"
         )
 
