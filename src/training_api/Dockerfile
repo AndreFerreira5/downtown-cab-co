@@ -6,8 +6,6 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-
-COPY data/ /app/data/
 COPY src/training_api /app/src/training_api
 
 ENV PATH="/app/.venv/bin:$PATH"
@@ -15,4 +13,4 @@ ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 
-CMD ["uv", "run", "main.py"]
+CMD ["python", "-m", "src.training_api.main"]
