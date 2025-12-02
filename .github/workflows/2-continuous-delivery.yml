@@ -8,7 +8,7 @@ on:
     workflows: [ "1 - Continuous Integration" ]
     types: [ completed ]
 
-    workflow_dispatch:
+  workflow_dispatch:
 
 env:
   DOCKER_REGISTRY: ghcr.io
