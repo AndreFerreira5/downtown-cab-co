@@ -1,7 +1,9 @@
 import logging
-from .train import run_training
+from .train import run_hyperparameter_tuning, run_training
+from .test import test_predictor
 from .config import TrainingConfig
 from .logging_config import configure_logging
+import mlflow
 
 # configure logging globally
 configure_logging()
@@ -9,13 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 def train(training_config: TrainingConfig):
-    info = run_training(
-        commit_sha=training_config.COMMIT_SHA,
-        model_name=training_config.MODEL_NAME,
-        experiment_name=training_config.EXP_NAME,
-    )
-    return {"message": "train finished", **info}
+    mlflow.set_experiment(training_config.EXP_NAME)
+
+    # first get the best hyperparameters
+    model_params = run_hyperparameter_tuning()
+
+    # only then train the model with the best hyperparameters
+    return run_training(model_params, training_config.COMMIT_SHA, training_config.MODEL_NAME)
 
 
 if __name__ == "__main__":
-    train(TrainingConfig())
+    regressor, booster = train(TrainingConfig())
+

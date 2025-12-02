@@ -21,5 +21,5 @@ class TrainingConfig:
 
         self.MLFLOW_URI = os.getenv('MLFLOW_TRACKING_URI')
         if not self.EXP_NAME:
-            raise EnvironmentError("Missing required env var: MLFLOW_EXPERIMENT_NAME")
+            raise EnvironmentError("Missing required env var: MLFLOW_TRACKING_URI")
         mlflow.set_tracking_uri(self.MLFLOW_URI)
