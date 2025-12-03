@@ -32,6 +32,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             numeric_cols: List[str] = None,
             years: List[int] = [2011, 2012],
             verbose: bool = False,
+            predicting: bool = False
     ):
         """
         Initialize the preprocessor.
@@ -54,6 +55,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         self.remove_outliers = remove_outliers
         self.create_additional_features = create_additional_features
         self.target_column = target_column
+        self.predicting = predicting
 
         self.column_mapping = {
             "vendorid": "VendorID",
@@ -68,9 +70,11 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
         # Default columns if none provided
         self.columns_to_keep = columns_to_keep if columns_to_keep else [
-            "VendorID", "tpep_pickup_datetime", "tpep_dropoff_datetime",
+            "VendorID", "tpep_pickup_datetime",
             "passenger_count", "trip_distance", "PULocationID", "DOLocationID"
         ]
+        if not self.predicting:
+            self.columns_to_keep.append("tpep_dropoff_datetime")
 
         self.datetime_cols = datetime_cols if datetime_cols else [
             "tpep_pickup_datetime", "tpep_dropoff_datetime"
@@ -84,7 +88,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             "passenger_count", "trip_distance"
         ]
         self.us_holidays = holidays.US(years=years)
-        self.verbose  = verbose
+        self.verbose = verbose
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -297,7 +301,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
 
         # Drop original pickup and dropoff datetime columns
-        df = df.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"])
+        df = df.drop(columns=["tpep_pickup_datetime", "tpep_dropoff_datetime"], errors='ignore')
 
         if self.verbose: logger.info(
             f"Created {len([c for c in df.columns if c not in ['pickup_datetime', 'dropoff_datetime']])} features"
@@ -317,6 +321,7 @@ def preprocess_taxi_data(
         datetime_cols: List[str] = None,
         categorical_cols: List[str] = None,
         numeric_cols: List[str] = None,
+        predicting: bool = False
 ) -> Tuple[pd.DataFrame, TaxiDataPreprocessor]:
     """
     Convenience function to preprocess taxi data.
@@ -346,6 +351,7 @@ def preprocess_taxi_data(
         datetime_cols=datetime_cols,
         categorical_cols=categorical_cols,
         numeric_cols=numeric_cols,
+        predicting=predicting
     )
 
     df_processed = preprocessor.transform(df)

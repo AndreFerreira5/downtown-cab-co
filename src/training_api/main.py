@@ -1,6 +1,8 @@
 import logging
+
+import pandas as pd
+
 from .train import run_hyperparameter_tuning, run_training
-from .test import test_predictor
 from .config import TrainingConfig
 from .logging_config import configure_logging
 import mlflow
@@ -22,4 +24,3 @@ def train(training_config: TrainingConfig):
 
 if __name__ == "__main__":
     regressor, booster = train(TrainingConfig())
-
