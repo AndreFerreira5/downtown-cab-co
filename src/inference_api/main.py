@@ -116,7 +116,7 @@ def predict(req: PredictRequest):
         )
 
     try:
-        return {"predictions": [app.state.model.predict(model_input=trip) for trip in req.data]}
+        return {"predictions": [app.state.model.predict(trip) for trip in req.data]}
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=400, detail=f"Prediction error")
