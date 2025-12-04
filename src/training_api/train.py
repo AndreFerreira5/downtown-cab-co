@@ -57,7 +57,7 @@ def plot_model_anatomy(model, daily_stats):
     dates = daily_stats['date_int']
 
     # Component A: The Pure Slope (Global Drift)
-    # y = mx + b
+    # y =  mx + b
     # We center it around the mean to make it graphable on the same chart
     drift_component = (dates * w_slope) + intercept
 
