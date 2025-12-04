@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def train(training_config: TrainingConfig):
-    mlflow.set_experiment(training_config.EXP_NAME)
+    mlflow.set_experiment(f"{training_config.EXP_NAME}_{training_config.COMMIT_SHA}")
 
     # first get the best hyperparameters
     model_params = run_hyperparameter_tuning(training_config.COMMIT_SHA, training_config.MODEL_NAME)

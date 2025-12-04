@@ -409,8 +409,8 @@ def run_training(model_params, commit_sha, model_name):
 
     rmse, mae, r2, fig = test_predictor(regressor, booster)
 
-    regressor_path = f"regressor_{commit_sha}.pkl"
-    booster_path = f"booster_{commit_sha}.pkl"
+    regressor_path = f"regressor_{commit_sha}_final.pkl"
+    booster_path = f"booster_{commit_sha}_final.pkl"
 
     with open(regressor_path, "wb") as f:
         pickle.dump(regressor, f)
