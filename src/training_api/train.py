@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import lightgbm as lgb
 from .test import test_predictor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import Ridge
 import os
 
