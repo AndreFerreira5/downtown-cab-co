@@ -1,11 +1,9 @@
 import mlflow
-from river import tree, metrics as river_metrics
 from .data.loader import DataLoader
 from .data.processer import preprocess_taxi_data
 import pickle
 import logging
 import pandas as pd
-import os
 import gc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,8 +11,30 @@ import lightgbm as lgb
 from .test import test_predictor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.linear_model import Ridge
+import os
 
 logger = logging.getLogger(__name__)
+
+
+class TrendResidualModel(mlflow.pyfunc.PythonModel):
+    def load_context(self, context):
+        with open(context.artifacts["regressor"], "rb") as f:
+            self.trend_model = pickle.load(f)
+        with open(context.artifacts["booster"], "rb") as f:
+            self.booster_model = pickle.load(f)
+
+    def predict(self, context, model_input):
+        model_input["tpep_pickup_datetime"] = pd.to_datetime(model_input["tpep_pickup_datetime"])
+        (X, t) = preprocess_taxi_data(pd.DataFrame([model_input]), remove_outliers=False, create_features=True, predicting=True)
+
+        trend_pred = self.model_a.predict(X[['date_int', 'sin_time', 'cos_time']])
+        trend_pred = np.maximum(trend_pred, 1.0)
+
+        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time'], errors='ignore')
+        ratio_pred = self.model_b.predict(X)
+        final_pred = trend_pred * ratio_pred
+
+        return final_pred
 
 
 def plot_model_anatomy(model, daily_stats):
@@ -281,9 +301,9 @@ def get_validation_data(model_a, sample_rate=0.05):
     return X_val, y_val, trend_val
 
 
-def run_hyperparameter_tuning():
-    model_a, X_train, y_train = prepare_in_memory_data(sample_rate=0.01)
-    X_val, y_val_true, val_trend = get_validation_data(model_a, sample_rate=0.05)
+def run_hyperparameter_tuning(commit_sha, model_name):
+    regressor, X_train, y_train = prepare_in_memory_data(sample_rate=0.01)
+    X_val, y_val_true, val_trend = get_validation_data(regressor, sample_rate=0.05)
 
     model_params_grid = [
         {
@@ -317,8 +337,6 @@ def run_hyperparameter_tuning():
             f"Testing Config {i + 1}/{len(model_params_grid)}: Power={params['tweedie_variance_power']}, LearningRate={params['learning_rate']}")
 
         mlflow.start_run()
-        for key in params:
-            mlflow.log_param(key, params[key])
 
         # create dataset object (zero-copy)
         train_set = lgb.Dataset(X_train, y_train, free_raw_data=False)
@@ -337,6 +355,30 @@ def run_hyperparameter_tuning():
         # score
         rmse = np.sqrt(mean_squared_error(y_val_true, final_pred))
         mae = mean_absolute_error(y_val_true, final_pred)
+
+        regressor_path = f"regressor_{commit_sha}.pkl"
+        booster_path = f"booster_{commit_sha}.pkl"
+
+        with open(regressor_path, "wb") as f:
+            pickle.dump(regressor, f)
+
+        with open(booster_path, "wb") as f:
+            pickle.dump(booster, f)
+
+        artifacts = {
+            "regressor": regressor_path,
+            "booster": booster_path
+        }
+
+        mlflow.pyfunc.log_model(
+            artifact_path="trend_residual_model",
+            python_model=TrendResidualModel(),
+            artifacts=artifacts,
+            registered_model_name=model_name
+        )
+
+        for key in params:
+            mlflow.log_param(key, params[key])
 
         mlflow.log_metrics(
             {"rmse": rmse, "mae": mae}
@@ -360,8 +402,6 @@ def run_hyperparameter_tuning():
 
 def run_training(model_params, commit_sha, model_name):
     mlflow.start_run()
-    for key in model_params:
-        mlflow.log_param(key, model_params[key])
 
     regressor = train_ridge_regressor(batch_sampling_perc=0.1, random_state=124961, download_dataset=False)
     booster = train_lightgbm(regressor_model=regressor, model_params=model_params, batch_sampling_perc=0.1,
@@ -369,54 +409,34 @@ def run_training(model_params, commit_sha, model_name):
 
     rmse, mae, r2, fig = test_predictor(regressor, booster)
 
-    mlflow.log_metrics(
-        {"rmse": rmse, "mae": mae, "r2": r2}
-    )
+    regressor_path = f"regressor_{commit_sha}.pkl"
+    booster_path = f"booster_{commit_sha}.pkl"
 
-    mlflow.log_figure(fig, "model_performance_dashboard.png")
-
-    with open(f"regressor_{commit_sha}.pkl", "wb") as f:
+    with open(regressor_path, "wb") as f:
         pickle.dump(regressor, f)
 
-    with open(f"booster_{commit_sha}.pkl", "wb") as f:
+    with open(booster_path, "wb") as f:
         pickle.dump(booster, f)
 
-    # log to the best run
-    mlflow.log_artifact(f"regressor_{commit_sha}.pkl")
-    mlflow.log_artifact(f"booster_{commit_sha}.pkl")
-    mlflow.log_metric("is_best_model", 1)
+    artifacts = {
+        "regressor": regressor_path,
+        "booster": booster_path
+    }
 
-    # register model to Model Registry
-    regressor_uri = f"runs:/{mlflow.active_run().info.run_id}/regressor_{commit_sha}.pkl"
-    booster_uri = f"runs:/{mlflow.active_run().info.run_id}/booster_{commit_sha}.pkl"
+    mlflow.pyfunc.log_model(
+        artifact_path="trend_residual_model",
+        python_model=TrendResidualModel(),
+        artifacts=artifacts,
+        registered_model_name=model_name
+    )
 
-    # TODO we have two models, how do we register them both to mlflow?
-    try:
-        registered_model = mlflow.register_model(
-            model_uri=booster_uri, name=model_name
-        )
-        logger.info(
-            f"Model registered successfully ({registered_model.version})"
-        )
+    for key in model_params:
+        mlflow.log_param(key, model_params[key])
+    mlflow.log_metrics({"rmse": rmse, "mae": mae, "r2": r2})
+    mlflow.log_figure(fig, "model_performance_dashboard.png")
 
-        from mlflow.tracking import MlflowClient
-
-        client = MlflowClient()
-        # client.set_registered_model_alias(
-        #    name=model_name,
-        #    alias="staging",
-        #    version=registered_model.version,
-        # )
-        client.set_registered_model_alias(
-            name=model_name,
-            alias=commit_sha,
-            version=registered_model.version,
-        )
-
-    except Exception as e:
-        logger.info(f"Model already exists in registry, updating version: {e}")
-        # if model name already exists, it will create a new version
-        mlflow.register_model(model_uri=booster_uri, name=model_name)
+    if os.path.exists(regressor_path): os.remove(regressor_path)
+    if os.path.exists(booster_path): os.remove(booster_path)
 
     mlflow.end_run()
 

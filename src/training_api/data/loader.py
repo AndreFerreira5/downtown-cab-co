@@ -5,6 +5,7 @@ import glob
 from .downloader import DataDownloader
 import logging
 import gc
+import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
 
@@ -14,86 +15,64 @@ logger = logging.getLogger(__name__)
 class DataLoader:
     """Load parquet files one at a time on demand."""
 
-    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False, years_to_download=["2011", "2012"], verbose: bool = False):
-        """
-        Initialize the data loader.
-
-        Args:
-            data_dir: Directory containing parquet files
-            batch_size: Number of rows to load per batch
-        """
+    def __init__(self, data_dir: str, batch_size: int = 50_000, download_dataset=False,
+                 years_to_download=["2011", "2012"], verbose: bool = False):
         if download_dataset:
             DataDownloader(years_to_download=years_to_download, dest_folder=data_dir).download()
-        self.data_dir = Path(data_dir)
-        self.batch_size = batch_size
-        self.parquet_files = sorted(glob.glob(str(self.data_dir / "*.parquet")))
 
+        self.data_dir = Path(data_dir)
+        # Note: Parquet reads in 'Row Groups'. We target approx batch_size but exact size depends on the file structure.
+        self.target_batch_size = batch_size
+        self.verbose = verbose
+
+        self.parquet_files = sorted(glob.glob(str(self.data_dir / "*.parquet")))
         if not self.parquet_files:
             raise ValueError(f"No parquet files found in {data_dir}")
 
-        # Track current position
+        # State trackers
         self._current_file_idx = 0
-        self._current_row_idx = 0
-        self._current_file_data: Optional[pd.DataFrame] = None
-        self.verbose = verbose
+        self._parquet_file_engine = None  # The Pyarrow reader engine
+        self._batch_iterator = None  # The iterator over the current file
 
     def load_next_batch(self) -> Optional[pd.DataFrame]:
         """
-        Load the next batch of data from one file at a time.
-        Automatically deletes the previous file data from memory when moving to the next file.
-
-        Returns:
-            DataFrame with the next batch, or None if all data has been read
+        Streams the next batch directly from disk.
         """
-        # Check if we have exhausted all files
-        if self._current_file_idx >= len(self.parquet_files):
-            return None
+        # 1. Open file if needed (Lazy Load)
+        if self._batch_iterator is None:
+            if self._current_file_idx >= len(self.parquet_files):
+                return None  # Done with all files
 
-        # Load new file if needed
-        if self._current_file_data is None:
             file_path = self.parquet_files[self._current_file_idx]
-            if self.verbose: logger.info(f"Loading file {self._current_file_idx + 1}/{len(self.parquet_files)}: {file_path}")
-            self._current_file_data = pd.read_parquet(file_path)
-            self._current_row_idx = 0
+            if self.verbose: logger.info(
+                f"Streaming file {self._current_file_idx + 1}/{len(self.parquet_files)}: {file_path}")
 
-        # Extract batch
-        start_idx = self._current_row_idx
-        end_idx = min(start_idx + self.batch_size, len(self._current_file_data))
-        batch = self._current_file_data.iloc[start_idx:end_idx].copy()
+            # Open the file efficiently using PyArrow (Zero RAM load initially)
+            self._parquet_file_engine = pq.ParquetFile(file_path)
 
-        # Update position
-        self._current_row_idx = end_idx
+            # Create an iterator that yields chunks
+            self._batch_iterator = self._parquet_file_engine.iter_batches(batch_size=self.target_batch_size)
 
-        # Move to next file if current is exhausted
-        if self._current_row_idx >= len(self._current_file_data):
-            if self.verbose: logger.info(f"Finished processing file {self._current_file_idx + 1}/{len(self.parquet_files)}")
-            # Delete current file data from memory
-            del self._current_file_data
-            self._current_file_data = None
-            # Force garbage collection to free memory immediately
-            gc.collect()
-            # Move to next file
+        # 2. Try to get the next chunk
+        try:
+            record_batch = next(self._batch_iterator)
+            # Convert PyArrow batch to Pandas (Fast)
+            return record_batch.to_pandas()
+
+        except StopIteration:
+            # Current file is finished. Move to next.
+            self._batch_iterator = None
+            self._parquet_file_engine = None
             self._current_file_idx += 1
 
-        return batch
+            # Recurse to load from the new file immediately
+            return self.load_next_batch()
 
     def reset(self) -> None:
-        """Reset the loader to start from the beginning and clear memory."""
-        if self._current_file_data is not None:
-            del self._current_file_data
-            self._current_file_data = None
-            gc.collect()
-
         self._current_file_idx = 0
-        self._current_row_idx = 0
+        self._batch_iterator = None
+        self._parquet_file_engine = None
+        gc.collect()
 
     def get_file_count(self) -> int:
-        """Return the number of parquet files."""
         return len(self.parquet_files)
-
-    def __del__(self):
-        """Cleanup when the DataLoader is destroyed."""
-        # Check if attribute exists before accessing it
-        if hasattr(self, '_current_file_data') and self._current_file_data is not None:
-            del self._current_file_data
-            gc.collect()
