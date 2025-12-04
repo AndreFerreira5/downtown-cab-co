@@ -16,7 +16,7 @@ class InferenceConfig:
             raise EnvironmentError("Missing required env var: MLFLOW_MODEL_ALIAS")
 
         self.MLFLOW_URI = os.getenv('MLFLOW_TRACKING_URI')
-        if not self.EXP_NAME:
+        if not self.MLFLOW_URI:
             raise EnvironmentError("Missing required env var: MLFLOW_TRACKING_URI")
         mlflow.set_tracking_uri(self.MLFLOW_URI)
         os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"
