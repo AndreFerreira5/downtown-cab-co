@@ -105,6 +105,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           export IMAGE_TAG=${{ github.sha }}
+          cp -f mlflow.compose.v1.yml ~/mlflow.compose.v1.yml
+          cd ~
           docker compose -f mlflow.compose.v1.yml pull
           docker compose -f mlflow.compose.v1.yml down
           docker compose -f mlflow.compose.v1.yml up -d
