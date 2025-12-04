@@ -85,6 +85,7 @@ jobs:
 
   deploy-mlflow-container:
     runs-on: self-hosted
+    needs: build-mlflow-container
     steps:
       - uses: actions/checkout@v5
 
