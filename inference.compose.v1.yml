@@ -2,9 +2,10 @@ services:
   inference_api:
     image: ghcr.io/andreferreira5/downtown-cab-co-inference-api:${IMAGE_TAG:-production}
     container_name: inference-api
-    restart: on-failure
+    restart: always
     environment:
-      - MODEL_NAME=nyc_taxi_duration
-      - MODEL_ALIAS=production
+      - MLFLOW_MODEL_NAME=${MLFLOW_MODEL_NAME}
+      - MLFLOW_MODEL_ALIAS=${MLFLOW_MODEL_ALIAS}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
     ports:
       - "8080:8080"
