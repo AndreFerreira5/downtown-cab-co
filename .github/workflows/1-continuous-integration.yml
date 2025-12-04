@@ -108,7 +108,8 @@ jobs:
           cp -f mlflow.compose.v1.yml ~/mlflow.compose.v1.yml
           cd ~
           docker compose -f mlflow.compose.v1.yml pull
-          docker compose -f mlflow.compose.v1.yml down
+          docker rm -f mlflow || true
+          docker compose -f mlflow.compose.v1.yml down || true
           docker compose -f mlflow.compose.v1.yml up -d
 
   build-training-api-container:
