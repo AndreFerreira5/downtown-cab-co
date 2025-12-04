@@ -5,6 +5,7 @@ import glob
 from .downloader import DataDownloader
 import logging
 import gc
+import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
 
