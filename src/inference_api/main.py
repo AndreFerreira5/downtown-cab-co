@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import pandas as pd
 import pickle
 from .data.processer import preprocess_taxi_data
-import data.processer as inference_processer
+import src.inference_api.data.processer as inference_processer
 import numpy as np
 from .logging_config import configure_logging
 from .config import InferenceConfig
