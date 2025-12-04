@@ -1,5 +1,4 @@
 import logging
-import os
 import uvicorn
 from fastapi import FastAPI, HTTPException
 import mlflow
@@ -10,9 +9,22 @@ from pydantic import BaseModel
 import pandas as pd
 import pickle
 from .data.processer import preprocess_taxi_data
+import data.processer as inference_processer
 import numpy as np
 from .logging_config import configure_logging
 from .config import InferenceConfig
+import types
+import sys
+
+# QUICK HACK to make the pickle model work in the inference API
+# TODO later remove this code and develop a code architecture that allows sharing code between training and inference properly
+training_api = types.ModuleType("src.training_api")
+training_api.data = types.ModuleType("src.training_api.data")
+training_api.data.processer = inference_processer
+
+sys.modules["src.training_api"] = training_api
+sys.modules["src.training_api.data"] = training_api.data
+sys.modules["src.training_api.data.processer"] = inference_processer
 
 # configure logging globally
 configure_logging()
