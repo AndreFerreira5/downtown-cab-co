@@ -435,9 +435,6 @@ def run_training(model_params, commit_sha, model_name):
     mlflow.log_metrics({"rmse": rmse, "mae": mae, "r2": r2})
     mlflow.log_figure(fig, "model_performance_dashboard.png")
 
-    if os.path.exists(regressor_path): os.remove(regressor_path)
-    if os.path.exists(booster_path): os.remove(booster_path)
-
     mlflow.end_run()
 
     return regressor, booster
