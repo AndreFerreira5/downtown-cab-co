@@ -14,7 +14,6 @@ def train(training_config: TrainingConfig):
 
     # first get the best hyperparameters
     model_params = run_hyperparameter_tuning(training_config.COMMIT_SHA, training_config.MODEL_NAME)
-
     # only then train the model with the best hyperparameters
     return run_training(model_params, training_config.COMMIT_SHA, training_config.MODEL_NAME)
 
