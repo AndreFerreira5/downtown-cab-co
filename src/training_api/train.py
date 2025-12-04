@@ -11,7 +11,7 @@ import lightgbm as lgb
 from .test import test_predictor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import Ridge
-import os
+from mlflow.tracking import MlflowClient
 
 logger = logging.getLogger(__name__)
 
@@ -423,7 +423,7 @@ def run_training(model_params, commit_sha, model_name):
         "booster": booster_path
     }
 
-    mlflow.pyfunc.log_model(
+    model_info = mlflow.pyfunc.log_model(
         artifact_path="trend_residual_model",
         python_model=TrendResidualModel(),
         artifacts=artifacts,
@@ -434,6 +434,21 @@ def run_training(model_params, commit_sha, model_name):
         mlflow.log_param(key, model_params[key])
     mlflow.log_metrics({"rmse": rmse, "mae": mae, "r2": r2})
     mlflow.log_figure(fig, "model_performance_dashboard.png")
+
+    client = MlflowClient()
+    #model_version = model_info.registered_model_version
+
+    client.set_registered_model_alias(
+        name=model_name,
+        alias=commit_sha,
+        #version=model_version
+    )
+
+    client.set_registered_model_alias(
+        name=model_name,
+        alias="staging",
+        #version=model_version
+    )
 
     mlflow.end_run()
 
