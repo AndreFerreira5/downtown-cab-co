@@ -12,6 +12,7 @@ import pickle
 from .data.processer import preprocess_taxi_data
 import numpy as np
 from .logging_config import configure_logging
+from .config import InferenceConfig
 
 # configure logging globally
 configure_logging()
@@ -44,13 +45,7 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
         return final_pred
 
 
-# ----- Config -----
-MODEL_NAME = os.getenv("MODEL_NAME", "nyc_taxi_duration")
-MODEL_ALIAS = os.getenv("MODEL_ALIAS", "production")
-MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5050")
-# os.environ["MLFLOW_ALLOWED_HOSTS"] = "*"
-
-mlflow.set_tracking_uri(MLFLOW_URI)
+inference_config = InferenceConfig()
 
 app = FastAPI(title="NYC Taxi Baseline API", version="0.1.0")
 
@@ -63,11 +58,11 @@ class PredictRequest(BaseModel):
 
 
 def load_model_into_app():
-    logger.info(f"Connecting to MLflow at {MLFLOW_URI}...")
+    logger.info(f"Connecting to MLflow at {inference_config.MLFLOW_URI}...")
     try:
         app.state.model = mlflow.pyfunc.load_model(
-            #model_uri=f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
-            model_uri=f"models:/{MODEL_NAME}@staging" # TODO this is just for prediction testing, remove it later and use the appropriate  aliases
+            #model_uri=f"models:/{inference_config.MODEL_NAME}@{inference_config.MODEL_ALIAS}"
+            model_uri=f"models:/{inference_config.MODEL_NAME}@staging" # TODO this is just for prediction testing, remove it later and use the appropriate  aliases
         )
         logger.info("Model loaded successfully.")
         return True
