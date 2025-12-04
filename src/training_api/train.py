@@ -25,16 +25,22 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
 
     def predict(self, context, model_input):
         model_input["tpep_pickup_datetime"] = pd.to_datetime(model_input["tpep_pickup_datetime"])
-        (X, t) = preprocess_taxi_data(pd.DataFrame([model_input]), remove_outliers=False, create_features=True, predicting=True)
+        X, _ = preprocess_taxi_data(
+            pd.DataFrame([model_input]),
+            remove_outliers=False,
+            create_features=True
+        )
 
-        trend_pred = self.model_a.predict(X[['date_int', 'sin_time', 'cos_time']])
+        trend_pred = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
         trend_pred = np.maximum(trend_pred, 1.0)
 
         X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time'], errors='ignore')
-        ratio_pred = self.model_b.predict(X)
-        final_pred = trend_pred * ratio_pred
+        X_residual = X.select_dtypes(include=['number', 'category'])
+        ratio_pred = self.booster_model.predict(X_residual)
 
+        final_pred = trend_pred * ratio_pred
         return final_pred
+
 
 
 def plot_model_anatomy(model, daily_stats):
@@ -109,8 +115,9 @@ def train_ridge_regressor(batch_sampling_perc=0.075, random_state=42, batch_size
             ['sum', 'count']).reset_index()
         daily_stats_accumulator.append(chunk_sums)
 
-        del processed_batch
-        gc.collect()
+        # TODO commenting these optimizations to rule out any issues related to the final training artifacts not being logged to mlflow
+        #del processed_batch
+        #gc.collect()
 
     plot_df = pd.concat(daily_stats_accumulator)
     final_stats = plot_df.groupby(['date_int', 'sin_time', 'cos_time'])[['sum', 'count']].sum().reset_index()
@@ -204,8 +211,9 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
             keep_training_booster=True
         )
 
-        del processed_batch, X_residual, y_ratio, train_set
-        gc.collect()
+        # TODO commenting these optimizations to rule out any issues related to the final training artifacts not being logged to mlflow
+        #del processed_batch, X_residual, y_ratio, train_set
+        #gc.collect()
 
     return booster
 
@@ -436,18 +444,18 @@ def run_training(model_params, commit_sha, model_name):
     mlflow.log_figure(fig, "model_performance_dashboard.png")
 
     client = MlflowClient()
-    #model_version = model_info.registered_model_version
+    model_version = model_info.registered_model_version
 
     client.set_registered_model_alias(
         name=model_name,
         alias=commit_sha,
-        #version=model_version
+        version=model_version
     )
 
     client.set_registered_model_alias(
         name=model_name,
         alias="staging",
-        #version=model_version
+        version=model_version
     )
 
     mlflow.end_run()
