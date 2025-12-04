@@ -83,6 +83,31 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:${{ github.sha }}
 
+  deploy-mlflow-container:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set lowercase image name
+        id: image-name
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and Deploy MLFlow
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          export IMAGE_TAG=${{ github.sha }}
+          docker compose -f mlflow.compose.v1.yml pull
+          docker compose -f mlflow.compose.v1.yml down
+          docker compose -f mlflow.compose.v1.yml up -d
+
   build-training-api-container:
     if: needs.check-changes.outputs.training == 'true'
     name: Build Training API Docker Container
