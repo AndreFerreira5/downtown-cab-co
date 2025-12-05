@@ -110,10 +110,10 @@ def reload_model():
 @app.post("/predict")
 def predict(req: PredictRequest):
     if app.state.model is None:
-        load_model_into_app()
-        raise HTTPException(
-            status_code=503, detail="Model not loaded. Call /reload or /train first."
-        )
+        if not load_model_into_app():
+            raise HTTPException(
+                status_code=503, detail="Model not loaded. Call /reload or /train first."
+            )
 
     try:
         input_df = pd.DataFrame(req.data)
