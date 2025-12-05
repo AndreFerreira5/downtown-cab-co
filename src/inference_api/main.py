@@ -16,7 +16,7 @@ from .config import InferenceConfig
 import types
 import sys
 
-# configure logging globally
+# configure logging  globally
 configure_logging()
 logger = logging.getLogger(__name__)
 
