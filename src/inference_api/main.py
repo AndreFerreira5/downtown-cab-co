@@ -39,7 +39,7 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
         trend_pred = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
         trend_pred = np.maximum(trend_pred, 1.0)
 
-        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time'], errors='ignore')
+        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time', 'PULocationID', 'DOLocationID'], inplace=True, errors='ignore')
         X_residual = X.select_dtypes(include=['number', 'category'])
         ratio_pred = self.booster_model.predict(X_residual)
 
