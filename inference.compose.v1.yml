@@ -8,4 +8,4 @@ services:
       - MLFLOW_MODEL_ALIAS=${MLFLOW_MODEL_ALIAS}
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
     ports:
-      - "8080:8080"
+      - "9001:9001"
