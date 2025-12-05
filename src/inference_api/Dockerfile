@@ -17,6 +17,6 @@ COPY src/inference_api /app/src/inference_api
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 
-EXPOSE 8080
+EXPOSE 9001
 
-CMD ["uvicorn", "src.inference_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "src.inference_api.main:app", "--host", "0.0.0.0", "--port", "9001"]
