@@ -9,6 +9,7 @@ import holidays
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+_US_HOLIDAYS_CACHE = holidays.US(years=range(2011, 2030))
 
 
 class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
@@ -83,7 +84,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         self.numeric_cols = numeric_cols if numeric_cols else [
             "passenger_count", "trip_distance"
         ]
-        self.us_holidays = holidays.US(years=years)
+        self.us_holidays = _US_HOLIDAYS_CACHE
         self.verbose = verbose
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:

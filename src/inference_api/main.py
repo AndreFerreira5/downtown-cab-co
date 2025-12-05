@@ -15,6 +15,7 @@ from .logging_config import configure_logging
 from .config import InferenceConfig
 import types
 import sys
+import time
 
 # configure logging  globally
 configure_logging()
@@ -44,7 +45,7 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
         ratio_pred = self.booster_model.predict(X_residual)
 
         final_pred = trend_pred * ratio_pred
-        return final_pred
+        return final_pred/60
 
 # QUICK HACK to make the pickle model work in the inference API
 # TODO later remove this code and develop a code architecture that allows sharing code between training and inference properly
@@ -116,8 +117,18 @@ def predict(req: PredictRequest):
             )
 
     try:
+        start = time.time()
         input_df = pd.DataFrame(req.data)
+        end_prep = time.time()
+        time_prep = end_prep - start
+
+        start = time.time()
         results = app.state.model.predict(input_df)
+        end_pred = time.time()
+        time_pred = end_pred - start
+
+        logger.info(f"Prediction results: {results}")
+        logger.info(f"Data prep: {time_prep:.4f} seconds - Prediction: {time_pred:.4f} seconds")
         return {"predictions": results.tolist()}
     except Exception as e:
         logger.error(f"Prediction error: {e}")
