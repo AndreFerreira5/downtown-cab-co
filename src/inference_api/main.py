@@ -31,7 +31,7 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
     def predict(self, context, model_input):
         model_input["tpep_pickup_datetime"] = pd.to_datetime(model_input["tpep_pickup_datetime"])
         X, _ = preprocess_taxi_data(
-            pd.DataFrame([model_input]),
+            pd.DataFrame(model_input),
             remove_outliers=False,
             create_features=True
         )
