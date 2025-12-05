@@ -116,7 +116,9 @@ def predict(req: PredictRequest):
         )
 
     try:
-        return {"predictions": [app.state.model.predict(trip) for trip in req.data]}
+        input_df = pd.DataFrame(req.data)
+        results = app.state.model.predict(input_df)
+        return {"predictions": results.tolist()}
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=400, detail=f"Prediction error")
