@@ -30,12 +30,16 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
             self.booster_model = pickle.load(f)
 
     def predict(self, context, model_input):
+        input_len = len(model_input)
         model_input["tpep_pickup_datetime"] = pd.to_datetime(model_input["tpep_pickup_datetime"])
         X, _ = preprocess_taxi_data(
             pd.DataFrame(model_input),
             remove_outliers=False,
-            create_features=True
+            create_features=True,
+            skip_validation=True
         )
+
+        if len(X) != input_len: logger.warning(f"Input length {input_len} differs from processed data length {len(X)}!!")
 
         trend_pred = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
         trend_pred = np.maximum(trend_pred, 1.0)
@@ -45,6 +49,9 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
         ratio_pred = self.booster_model.predict(X_residual)
 
         final_pred = trend_pred * ratio_pred
+
+        if len(final_pred) != input_len: logger.warning(f"Input length {input_len} differs from predicted data length {len(X)}!!")
+
         return final_pred/60
 
 # QUICK HACK to make the pickle model work in the inference API

@@ -33,6 +33,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
             numeric_cols: List[str] = None,
             years: List[int] = [2011, 2012],
             verbose: bool = False,
+            skip_validation: bool = False
     ):
         """
         Initialize the preprocessor.
@@ -86,6 +87,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         ]
         self.us_holidays = _US_HOLIDAYS_CACHE
         self.verbose = verbose
+        self._skip_validation = skip_validation
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -205,6 +207,8 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
 
     def _remove_invalid_records(self, df: pd.DataFrame) -> pd.DataFrame:
         """Remove records with invalid or impossible values."""
+        if self._skip_validation:
+            return df
 
         initial_count = len(df)
 
@@ -317,7 +321,8 @@ def preprocess_taxi_data(
         columns_to_keep: List[str] = None,
         datetime_cols: List[str] = None,
         categorical_cols: List[str] = None,
-        numeric_cols: List[str] = None
+        numeric_cols: List[str] = None,
+        skip_validation: bool = False
 ) -> Tuple[pd.DataFrame, TaxiDataPreprocessor]:
     """
     Convenience function to preprocess taxi data.
@@ -346,7 +351,8 @@ def preprocess_taxi_data(
         columns_to_keep=columns_to_keep,
         datetime_cols=datetime_cols,
         categorical_cols=categorical_cols,
-        numeric_cols=numeric_cols
+        numeric_cols=numeric_cols,
+        skip_validation=skip_validation
     )
 
     df_processed = preprocessor.transform(df)
