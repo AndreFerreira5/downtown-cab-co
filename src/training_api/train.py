@@ -304,7 +304,7 @@ def get_validation_data(model_a, sample_rate=0.05):
         # store Trend Prediction
         trend_features = processed[['date_int', 'sin_time', 'cos_time']]
         trend_val = model_a.predict(trend_features)
-        trend_val = trend_val.expm1()  # inverse of log1p
+        trend_val = np.expm1(trend_val)  # inverse of log1p
         trend_val = np.maximum(trend_val, 1.0)
         trend_list.append(trend_val)
 
