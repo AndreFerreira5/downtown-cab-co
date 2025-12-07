@@ -24,23 +24,31 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
             self.booster_model = pickle.load(f)
 
     def predict(self, context, model_input):
+        input_len = len(model_input)
         model_input["tpep_pickup_datetime"] = pd.to_datetime(model_input["tpep_pickup_datetime"])
         X, _ = preprocess_taxi_data(
             pd.DataFrame(model_input),
             remove_outliers=False,
-            create_features=True
+            create_features=True,
+            skip_validation=True
         )
 
+        if len(X) != input_len: logger.warning(f"Input length {input_len} differs from processed data length {len(X)}!!")
+
         trend_pred = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
+        trend_pred = np.expm1(trend_pred)  # inverse of log1p
         trend_pred = np.maximum(trend_pred, 1.0)
 
-        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time'], errors='ignore')
+        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int'], inplace=True, errors='ignore')
         X_residual = X.select_dtypes(include=['number', 'category'])
-        ratio_pred = self.booster_model.predict(X_residual)
+        log_correction = self.booster_model.predict(X_residual)
+        ratio_multiplier = np.exp(log_correction)
 
-        final_pred = trend_pred * ratio_pred
-        return final_pred
+        final_pred = trend_pred * ratio_multiplier
 
+        if len(final_pred) != input_len: logger.warning(f"Input length {input_len} differs from predicted data length {len(X)}!!")
+
+        return final_pred/60
 
 
 def plot_model_anatomy(model, daily_stats):
@@ -123,9 +131,9 @@ def train_ridge_regressor(batch_sampling_perc=0.075, random_state=42, batch_size
     final_stats = plot_df.groupby(['date_int', 'sin_time', 'cos_time'])[['sum', 'count']].sum().reset_index()
     final_stats['avg_duration'] = final_stats['sum'] / final_stats['count']
 
-    regressor = Ridge(alpha=1.0)
+    regressor = Ridge(alpha=100.0)
     X_trend = final_stats[['date_int', 'sin_time', 'cos_time']]
-    y_trend = final_stats['avg_duration']
+    y_trend = np.log1p(final_stats['avg_duration'])
     regressor.fit(X_trend, y_trend)
     return regressor
 
@@ -134,9 +142,8 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
                    download_dataset=False):
     if not model_params:
         model_params = {
-            'objective': 'tweedie',
-            'tweedie_variance_power': 1.15,
-            'metric': 'tweedie',
+            'objective': 'regression',
+            'metric': 'rmse',
             'boosting_type': 'gbdt',
             'force_col_wise': True,
             'learning_rate': 0.1,
@@ -145,8 +152,8 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
             'feature_fraction': 0.8,
             'bagging_freq': 1,
             'bagging_fraction': 0.7,
-            'lambda_l1': 0.1,
-            'lambda_l2': 0.1,
+            'lambda_l1': 1.0,
+            'lambda_l2': 1.0,
             'n_jobs': -1,
             'verbose': -1
         }
@@ -191,13 +198,15 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
         trend_features = processed_batch[['date_int', 'sin_time', 'cos_time']]
         baseline_preds = regressor_model.predict(trend_features)
+        baseline_preds = np.expm1(baseline_preds)  # inverse of log1p
 
         # safety clamp, force baseline to be at least 1 second
         baseline_preds = np.maximum(baseline_preds, 1.0)
 
         # y_residual = processed_batch['trip_duration'] - baseline_preds
-        y_ratio = processed_batch['trip_duration'] / baseline_preds
-        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
+        #y_ratio = processed_batch['trip_duration'] / baseline_preds
+        y_ratio = np.log1p(processed_batch['trip_duration']) - np.log1p(baseline_preds)
+        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
         X_residual = processed_batch.drop(columns=drop_cols, errors='ignore').select_dtypes(
             include=['number', 'category'])
 
@@ -206,7 +215,7 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         booster = lgb.train(
             model_params,
             train_set,
-            num_boost_round=3,
+            num_boost_round=10,
             init_model=booster,
             keep_training_booster=True
         )
@@ -251,7 +260,7 @@ def prepare_in_memory_data(sample_rate=0.01):
         ['sum', 'count']).reset_index()
     daily_stats['avg_duration'] = daily_stats['sum'] / daily_stats['count']
 
-    model_a = Ridge(alpha=1.0)
+    model_a = Ridge(alpha=100.0)
     model_a.fit(daily_stats[['date_int', 'sin_time', 'cos_time']], daily_stats['avg_duration'])
 
     # calculate ratios (targets for LightGBM)
@@ -261,10 +270,11 @@ def prepare_in_memory_data(sample_rate=0.01):
     baseline = model_a.predict(trend_features)
     baseline = np.maximum(baseline, 1.0)  # Safety
 
-    y_ratio = full_df['trip_duration'] / baseline
+    #y_ratio = full_df['trip_duration'] / baseline
+    y_ratio = np.log1p(full_df['trip_duration']) - np.log1p(baseline)
 
     # prepare X for LightGBM (drop non-features)
-    drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
+    drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
     X_train = full_df.drop(columns=drop_cols, errors='ignore').select_dtypes(include=['number', 'category'])
 
     return model_a, X_train, y_ratio
@@ -294,11 +304,12 @@ def get_validation_data(model_a, sample_rate=0.05):
         # store Trend Prediction
         trend_features = processed[['date_int', 'sin_time', 'cos_time']]
         trend_val = model_a.predict(trend_features)
+        trend_val = trend_val.expm1()  # inverse of log1p
         trend_val = np.maximum(trend_val, 1.0)
         trend_list.append(trend_val)
 
         # store Features
-        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time']
+        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
         X = processed.drop(columns=drop_cols, errors='ignore').select_dtypes(include=['number', 'category'])
         X_list.append(X)
 
@@ -315,24 +326,24 @@ def run_hyperparameter_tuning(commit_sha, model_name):
 
     model_params_grid = [
         {
-            'objective': 'tweedie',
-            'tweedie_variance_power': tvp,
-            'metric': 'tweedie',
+            'objective': 'regression',
+            'metric': 'rmse',
             'boosting_type': 'gbdt',
             'force_col_wise': True,
             'learning_rate': lr,
-            'num_leaves': 127,
-            'min_data_in_leaf': 20,
+            'num_leaves': nl,
+            'min_data_in_leaf': mdil,
             'feature_fraction': 0.8,
-            'bagging_freq': 1,
             'bagging_fraction': 0.7,
-            'lambda_l1': 0.1,
-            'lambda_l2': 0.1,
+            'bagging_freq': 1,
+            'lambda_l1': 1.0,
+            'lambda_l2': 1.0,
             'n_jobs': -1,
             'verbose': -1
         }
-        for tvp in [1.15, 1.5, 1.75]
         for lr in [0.01, 0.05, 0.1]
+        for nl in [63, 127]
+        for mdil in [20, 100]
     ]
 
     best_rmse = float('inf')
@@ -342,7 +353,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
 
     for i, params in enumerate(model_params_grid):
         logger.info(
-            f"Testing Config {i + 1}/{len(model_params_grid)}: Power={params['tweedie_variance_power']}, LearningRate={params['learning_rate']}")
+            f"Testing Config {i + 1}/{len(model_params_grid)}: LearningRate={params['learning_rate']}, NumberLeaves={params['num_leaves']}, MinDataInLeaf={params['min_data_in_leaf']}")
 
         mlflow.start_run()
 
