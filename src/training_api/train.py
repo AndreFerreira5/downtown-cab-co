@@ -379,7 +379,6 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             'bagging_freq': 1,
             'lambda_l1': 1.0,
             'lambda_l2': 1.0,
-            'n_estimators': 500,
             'n_jobs': -1,
             'verbose': -1
         }
@@ -408,7 +407,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
         booster = lgb.train(
             params,
             train_set,
-            num_boost_round=2000,
+            num_boost_round=500,
             valid_sets=[train_set, valid_set],
             valid_names=['train', 'valid'],
             callbacks=[
