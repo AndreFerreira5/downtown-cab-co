@@ -261,17 +261,20 @@ def prepare_in_memory_data(sample_rate=0.01):
     daily_stats['avg_duration'] = daily_stats['sum'] / daily_stats['count']
 
     model_a = Ridge(alpha=100.0)
-    model_a.fit(daily_stats[['date_int', 'sin_time', 'cos_time']], daily_stats['avg_duration'])
+    y_trend_log = np.log1p(daily_stats['avg_duration'])
+    model_a.fit(daily_stats[['date_int', 'sin_time', 'cos_time']], y_trend_log)
 
     # calculate ratios (targets for LightGBM)
     logger.info("--- PHASE 3: Calculating Ratios ---")
 
     trend_features = full_df[['date_int', 'sin_time', 'cos_time']]
-    baseline = model_a.predict(trend_features)
-    baseline = np.maximum(baseline, 1.0)  # Safety
+    baseline_log = model_a.predict(trend_features)
+
+    baseline_seconds = np.expm1(baseline_log)
+    baseline_seconds = np.maximum(baseline_seconds, 1.0)
 
     #y_ratio = full_df['trip_duration'] / baseline
-    y_ratio = np.log1p(full_df['trip_duration']) - np.log1p(baseline)
+    y_ratio = np.log1p(full_df['trip_duration']) - np.log1p(baseline_seconds)
 
     # prepare X for LightGBM (drop non-features)
     drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
@@ -369,7 +372,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
 
         # predict on validation
         ratio_pred = booster.predict(X_val)
-        final_pred = val_trend * ratio_pred  # Re-combine
+        final_pred = val_trend * np.exp(ratio_pred)
 
         # score
         rmse = np.sqrt(mean_squared_error(y_val_true, final_pred))
