@@ -260,6 +260,8 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
             keep_training_booster=True
         )
 
+        batch_count += 1
+
     return booster
 
 
@@ -371,7 +373,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             'force_col_wise': True,
             'learning_rate': lr,
             'num_leaves': nl,
-            'min_data_in_leaf': mdil,
+            'min_data_in_leaf': 100,
             'feature_fraction': 0.8,
             'bagging_fraction': 0.7,
             'bagging_freq': 1,
@@ -381,9 +383,8 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             'n_jobs': -1,
             'verbose': -1
         }
-        for lr in [0.03, 0.05]
+        for lr in [0.05, 0.1]
         for nl in [127, 255]
-        for mdil in [100, 300]
     ]
 
     best_rmse = float('inf')
@@ -411,8 +412,8 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             valid_sets=[train_set, valid_set],
             valid_names=['train', 'valid'],
             callbacks=[
-                lgb.early_stopping(stopping_rounds=50),  # stop if valid score doesn't improve for 50 rounds
-                lgb.log_evaluation(period=100)  # print progress every 100 rounds
+                lgb.early_stopping(stopping_rounds=20),  # stop if valid score doesn't improve for 25 rounds
+                lgb.log_evaluation(period=50)  # print progress every 100 rounds
             ]
         )
 
