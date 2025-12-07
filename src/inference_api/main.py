@@ -16,11 +16,16 @@ from .config import InferenceConfig
 import types
 import sys
 import time
+import os
+import requests
+from collections import deque
 
 # configure logging  globally
 configure_logging()
 logger = logging.getLogger(__name__)
 
+RMSE_WINDOW_SIZE = 100  # Number of predictions to track TODO CHANGE
+RMSE_THRESHOLD = 10.0   # RMSE threshold to trigger retraining TODO CHANGE
 
 class TrendResidualModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
@@ -74,10 +79,69 @@ app = FastAPI(title="NYC Taxi Baseline API", version="0.1.0")
 # Keep the model in memory (reloaded on /reload or after /train)
 app.state.model = None
 
+# Sliding window
+app.state.prediction_errors = deque(maxlen=RMSE_WINDOW_SIZE)
+app.state.retraining_triggered = False
 
 class PredictRequest(BaseModel):
     data: List[Dict[str, Any]]
 
+
+def trigger_retraining_workflow():
+    """Trigger GitHub Actions workflow for model retraining"""
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_repo = os.getenv("GITHUB_REPOSITORY")
+
+    if not github_token or not github_repo:
+        logger.error("GitHub credentials not configured. Cannot trigger retraining.")
+        return False
+
+    url = f"https://api.github.com/repos/{github_repo}/actions/workflows/2-continuous-delivery.yml/dispatches"
+
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "Authorization": f"token {github_token}"
+    }
+
+    payload = {
+        "ref": "main",
+        "inputs": {
+            "trigger_reason": "rmse_threshold_exceeded"
+        }
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 204:
+            logger.info("Retraining workflow triggered successfully!")
+            return True
+        else:
+            logger.error(f"Failed to trigger retraining: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Error triggering retraining workflow: {e}")
+        return False
+
+
+def check_and_trigger_retraining():
+    """Check if RMSE threshold is exceeded and trigger retraining"""
+    if len(app.state.prediction_errors) < RMSE_WINDOW_SIZE:
+        logger.info(f"Sliding window not full yet: {len(app.state.prediction_errors)}/{RMSE_WINDOW_SIZE}")
+        return
+
+    # Calculate average RMSE over the sliding window
+    avg_rmse = np.sqrt(np.mean(app.state.prediction_errors))
+    logger.info(f"📊 Current sliding window average RMSE: {avg_rmse:.4f}")
+
+    if avg_rmse > RMSE_THRESHOLD and not app.state.retraining_triggered:
+        logger.warning(f"⚠️ RMSE threshold exceeded! {avg_rmse:.4f} > {RMSE_THRESHOLD}")
+        logger.warning("🔄 Triggering model retraining...")
+
+        if trigger_retraining_workflow():
+            app.state.retraining_triggered = True
+            logger.info("Retraining flag set. Will reset after model reload.")
+        else:
+            logger.error("Failed to trigger retraining workflow.")
 
 def load_model_into_app():
     logger.info(f"Connecting to MLflow at {inference_config.MLFLOW_URI}...")
@@ -87,6 +151,7 @@ def load_model_into_app():
             model_uri=f"models:/{inference_config.MODEL_NAME}@staging" # TODO this is just for prediction testing, remove it later and use the appropriate  aliases
         )
         logger.info("Model loaded successfully.")
+        app.state.retraining_triggered = False
         return True
     except Exception as e:
         logger.error(f"FATAL: Could not load model: {e}")
@@ -141,6 +206,84 @@ def predict(req: PredictRequest):
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=400, detail=f"Prediction error")
 
+
+@app.post("/validate")
+def validate_model():
+    """Periodic validation using historical 2013 data"""
+    if app.state.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        current_date = pd.Timestamp.now()
+        validation_data = load_validation_data_for_date(current_date)
+
+        if validation_data is None or len(validation_data) == 0:
+            return {"message": "no_validation_data"}
+
+        # Prepare data for prediction (same format as training)
+        y_true = validation_data['trip_duration'].values / 60
+
+        # Make predictions
+        predictions = app.state.model.predict(validation_data)
+
+        # Calculate squared errors
+        squared_errors = (predictions - y_true) ** 2
+        for se in squared_errors:
+            app.state.prediction_errors.append(float(se))
+
+        check_and_trigger_retraining()
+
+        avg_rmse = float(np.sqrt(np.mean(app.state.prediction_errors)))
+        logger.info(f"Validation: RMSE={avg_rmse:.4f}, window={len(app.state.prediction_errors)}/{RMSE_WINDOW_SIZE}")
+
+        return {
+            "validation_date": str(current_date.date()),
+            "validation_month": f"2013-{current_date.month:02d}",
+            "samples_validated": len(validation_data),
+            "current_avg_rmse": avg_rmse,
+            "window_size": len(app.state.prediction_errors),
+            "threshold": RMSE_THRESHOLD,
+            "retraining_triggered": app.state.retraining_triggered
+        }
+
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def load_validation_data_for_date(current_date):
+    """Load validation data from 2013 matching current month"""
+    # Match current month to 2013 file
+    month_num = current_date.month
+
+    # Path to your testing folder
+    testing_folder = "/testing"
+    file_pattern = f"yellow_tripdata_2013-{month_num:02d}.parquet"
+    file_path = os.path.join(testing_folder, file_pattern)
+
+    if not os.path.exists(file_path):
+        logger.warning(f"Validation file not found: {file_path}")
+        return None
+
+    try:
+        df = pd.read_parquet(file_path)
+
+        # Filter to same day of month or just take a sample
+        df['tpep_pickup_datetime'] = pd.to_datetime(df['tpep_pickup_datetime'])
+        day_of_month = current_date.day
+        matched = df[df['tpep_pickup_datetime'].dt.day == day_of_month].copy()
+
+        # If no exact day match, use random sample from the month
+        if len(matched) == 0:
+            matched = df.sample(n=min(1000, len(df))).copy()
+            logger.info(f"Using {len(matched)} samples from month {month_num}")
+        else:
+            logger.info(f"Found {len(matched)} trips for day {day_of_month} in month {month_num}")
+
+        return matched
+
+    except Exception as e:
+        logger.error(f"Error loading validation data: {e}")
+        return None
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=9001, reload=True)
