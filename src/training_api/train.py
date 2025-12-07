@@ -192,25 +192,65 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
     booster = None
     data_loader = DataLoader("training/", batch_size=batch_size, download_dataset=False)
     data_loader.reset()
+    batch_count = 1
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
-        if len(batch) > 1000:
-            batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
+        #if len(batch) > 1000:
+        #    batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
+        if processed_batch.empty: continue
+
         trend_features = processed_batch[['date_int', 'sin_time', 'cos_time']]
-        baseline_preds = regressor_model.predict(trend_features)
-        baseline_preds = np.expm1(baseline_preds)  # inverse of log1p
+        baseline_preds_full = regressor_model.predict(trend_features)
+        baseline_preds_full = np.expm1(baseline_preds_full)  # inverse of log1p
+        baseline_preds_full = np.maximum(baseline_preds_full, 1.0)
 
-        # safety clamp, force baseline to be at least 1 second
-        baseline_preds = np.maximum(baseline_preds, 1.0)
+        # calculate error to identify hard cases
+        actual = processed_batch['trip_duration']
+        # error metric, absolute percentage error
+        error_ratio = np.abs(actual - baseline_preds_full) / baseline_preds_full
 
-        # y_residual = processed_batch['trip_duration'] - baseline_preds
-        #y_ratio = processed_batch['trip_duration'] / baseline_preds
-        y_ratio = np.log1p(processed_batch['trip_duration']) - np.log1p(baseline_preds)
+        # create masks for smart sampling
+        # hard mask, error bigger than 20%, keep them all
+        mask_hard = error_ratio > 0.20
+        # easy mask, error less than 20%, keep only 5% of them
+        random_mask = np.random.rand(len(processed_batch)) < 0.05
+        mask_easy = (~mask_hard) & random_mask
+
+        # combine masks
+        final_mask = mask_hard | mask_easy
+
+        # apply mask to data and baseline
+        # this ensures X, y, and baseline are all perfectly aligned
+        training_chunk = processed_batch[final_mask].copy()
+        baseline_chunk = baseline_preds_full[final_mask]
+
+        if len(training_chunk) == 0: continue  # Skip if empty
+
+        # calculate targets for the chunk only
+        # target = log(actual) - log(baseline)
+        y_ratio_chunk = np.log1p(training_chunk['trip_duration']) - np.log1p(baseline_chunk)
         drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
-        X_residual = processed_batch.drop(columns=drop_cols, errors='ignore').select_dtypes(
+        X_residual_chunk = training_chunk.drop(columns=drop_cols, errors='ignore').select_dtypes(
             include=['number', 'category'])
 
-        train_set = lgb.Dataset(X_residual, y_ratio, free_raw_data=True)
+        if booster is not None and (batch_count % 10 == 0):
+            # Predict
+            pred_log_ratio = booster.predict(X_residual_chunk)
+            # Reconstruct
+            pred_final = baseline_chunk * np.exp(pred_log_ratio)
+            actual_chunk = training_chunk['trip_duration']
+
+            # Score
+            batch_rmse = np.sqrt(mean_squared_error(actual_chunk, pred_final))
+            batch_mae = mean_absolute_error(actual_chunk, pred_final)
+
+            # Log to MLflow
+            mlflow.log_metric("train_batch_rmse", batch_rmse, step=batch_count*batch_size)
+            mlflow.log_metric("train_batch_mae", batch_mae, step=batch_count*batch_size)
+
+            logger.info(f"Batch {batch_count}: RMSE={batch_rmse:.2f}, MAE={batch_mae:.2f}")
+
+        train_set = lgb.Dataset(X_residual_chunk, y_ratio_chunk, free_raw_data=True)
 
         booster = lgb.train(
             model_params,
@@ -219,10 +259,6 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
             init_model=booster,
             keep_training_booster=True
         )
-
-        # TODO commenting these optimizations to rule out any issues related to the final training artifacts not being logged to mlflow
-        #del processed_batch, X_residual, y_ratio, train_set
-        #gc.collect()
 
     return booster
 
@@ -341,12 +377,13 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             'bagging_freq': 1,
             'lambda_l1': 1.0,
             'lambda_l2': 1.0,
+            'n_estimators': 500,
             'n_jobs': -1,
             'verbose': -1
         }
-        for lr in [0.01, 0.05, 0.1]
-        for nl in [63, 127]
-        for mdil in [20, 100]
+        for lr in [0.03, 0.05]
+        for nl in [127, 255]
+        for mdil in [100, 300]
     ]
 
     best_rmse = float('inf')
@@ -363,15 +400,24 @@ def run_hyperparameter_tuning(commit_sha, model_name):
         # create dataset object (zero-copy)
         train_set = lgb.Dataset(X_train, y_train, free_raw_data=False)
 
+        y_val_log_ratio = np.log1p(y_val_true) - np.log1p(val_trend)
+        valid_set = lgb.Dataset(X_val, y_val_log_ratio, reference=train_set, free_raw_data=False)
+
         # train (fast because data is in RAM)
         booster = lgb.train(
             params,
             train_set,
-            num_boost_round=100,
+            num_boost_round=2000,
+            valid_sets=[train_set, valid_set],
+            valid_names=['train', 'valid'],
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=50),  # stop if valid score doesn't improve for 50 rounds
+                lgb.log_evaluation(period=100)  # print progress every 100 rounds
+            ]
         )
 
         # predict on validation
-        ratio_pred = booster.predict(X_val)
+        ratio_pred = booster.predict(X_val, num_iteration=booster.best_iteration)
         final_pred = val_trend * np.exp(ratio_pred)
 
         # score
@@ -429,8 +475,6 @@ def run_training(model_params, commit_sha, model_name):
     booster = train_lightgbm(regressor_model=regressor, model_params=model_params, batch_sampling_perc=0.1,
                              random_state=124961, download_dataset=False)
 
-    rmse, mae, r2, fig = test_predictor(regressor, booster)
-
     regressor_path = f"regressor_{commit_sha}_final.pkl"
     booster_path = f"booster_{commit_sha}_final.pkl"
 
@@ -451,6 +495,8 @@ def run_training(model_params, commit_sha, model_name):
         artifacts=artifacts,
         registered_model_name=model_name
     )
+
+    rmse, mae, r2, fig = test_predictor(regressor, booster)
 
     for key in model_params:
         mlflow.log_param(key, model_params[key])

@@ -38,7 +38,7 @@ def test_predictor(trend_model, booster_model, download_dataset=False):
 
         # Model B (Residuals)
         cols_to_exclude = ['trip_duration', 'tpep_pickup_datetime', 'tpep_dropoff_datetime',
-                           'date_int', 'sin_time', 'cos_time']
+                           'date_int']
         X_residual = processed_batch.drop(columns=[c for c in cols_to_exclude if c in processed_batch.columns])
         X_residual = X_residual.select_dtypes(include=['number', 'category'])
 
