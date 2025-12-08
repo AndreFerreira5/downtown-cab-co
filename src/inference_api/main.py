@@ -45,7 +45,7 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
         trend_pred = np.expm1(trend_log)  # inverse of log1p
         trend_pred = np.maximum(trend_pred, 1.0)
 
-        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time', 'PULocationID', 'DOLocationID'], inplace=True, errors='ignore')
+        X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int'], inplace=True, errors='ignore')
         X_residual = X.select_dtypes(include=['number', 'category'])
         log_correction = self.booster_model.predict(X_residual)
         ratio_multiplier = np.exp(log_correction)
