@@ -233,7 +233,7 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         X_residual_chunk = training_chunk.drop(columns=drop_cols, errors='ignore').select_dtypes(
             include=['number', 'category'])
 
-        if booster is not None and (batch_count % 10 == 0):
+        if booster is not None and (batch_count % 15 == 0):
             # Predict
             pred_log_ratio = booster.predict(X_residual_chunk)
             # Reconstruct
@@ -255,7 +255,7 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         booster = lgb.train(
             model_params,
             train_set,
-            num_boost_round=10,
+            num_boost_round=2,
             init_model=booster,
             keep_training_booster=True
         )
@@ -373,6 +373,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
             'force_col_wise': True,
             'learning_rate': lr,
             'num_leaves': nl,
+            'max_bin': 63,
             'min_data_in_leaf': 100,
             'feature_fraction': 0.8,
             'bagging_fraction': 0.7,

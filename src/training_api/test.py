@@ -16,7 +16,7 @@ def test_predictor(trend_model, booster_model, download_dataset=False):
     y_pred = []
 
     print("--- Running Inference ---")
-    batches_to_process = 1_000
+    batches_to_process = 500
 
     batch_count = 0
     while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
@@ -32,7 +32,8 @@ def test_predictor(trend_model, booster_model, download_dataset=False):
         # 2. Model A (Trend)
         # Note: Model A predicts RAW seconds (Linearly)
         X_trend = processed_batch[['date_int', 'sin_time', 'cos_time']]
-        trend = trend_model.predict(X_trend)
+        trend_log = trend_model.predict(X_trend)
+        trend = np.expm1(trend_log)
         trend = np.maximum(trend, 1.0)
 
 
@@ -42,9 +43,10 @@ def test_predictor(trend_model, booster_model, download_dataset=False):
         X_residual = processed_batch.drop(columns=[c for c in cols_to_exclude if c in processed_batch.columns])
         X_residual = X_residual.select_dtypes(include=['number', 'category'])
 
-        resid = booster_model.predict(X_residual)
+        log_correction = booster_model.predict(X_residual)
+        ratio_multiplier = np.exp(log_correction)
 
-        final_sec = trend * resid
+        final_sec = trend * ratio_multiplier
 
         # 5. Store for Plotting
         y_true.extend(processed_batch['trip_duration'].values)
@@ -58,7 +60,7 @@ def test_predictor(trend_model, booster_model, download_dataset=False):
     y_pred = np.array(y_pred)
 
     # Cap predictions to avoid graph explosion (e.g. max 2 hours)
-    y_pred = np.minimum(y_pred, 7200)
+    #y_pred = np.minimum(y_pred, 7200)
 
     # --- METRICS CALCULATION ---
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
@@ -115,7 +117,7 @@ def plot_performance(y_true, y_pred):
 
     # Plot 4: Zoomed Time Series (First 100 samples)
     # Good for visual sanity check
-    subset_n = 35
+    subset_n = 200
     x_range = range(subset_n)
     axes[1, 1].plot(x_range, y_true[:subset_n], label="Actual", color='gray', alpha=0.7)
     axes[1, 1].plot(x_range, y_pred[:subset_n], label="Predicted", color='blue', linewidth=2)
@@ -125,7 +127,7 @@ def plot_performance(y_true, y_pred):
     axes[1, 1].legend()
 
     plt.tight_layout()
-    #plt.savefig("model_performance_dashboard.png")
+    plt.savefig("model_performance_dashboard.png")
     print("Graphs saved to 'model_performance_dashboard.png'")
     #plt.show()
 
