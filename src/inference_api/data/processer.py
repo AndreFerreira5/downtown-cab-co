@@ -79,7 +79,7 @@ class TaxiDataPreprocessor(BaseEstimator, TransformerMixin):
         ]
 
         self.categorical_cols = categorical_cols if categorical_cols else [
-            "PULocationID", "DOLocationID"
+            #"PULocationID", "DOLocationID"
         ]
 
         self.numeric_cols = numeric_cols if numeric_cols else [
