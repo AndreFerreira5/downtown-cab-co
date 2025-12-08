@@ -41,14 +41,16 @@ class TrendResidualModel(mlflow.pyfunc.PythonModel):
 
         if len(X) != input_len: logger.warning(f"Input length {input_len} differs from processed data length {len(X)}!!")
 
-        trend_pred = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
+        trend_log = self.trend_model.predict(X[['date_int', 'sin_time', 'cos_time']])
+        trend_pred = np.expm1(trend_log)  # inverse of log1p
         trend_pred = np.maximum(trend_pred, 1.0)
 
         X.drop(columns=['trip_duration', 'tpep_pickup_datetime', 'date_int', 'sin_time', 'cos_time', 'PULocationID', 'DOLocationID'], inplace=True, errors='ignore')
         X_residual = X.select_dtypes(include=['number', 'category'])
-        ratio_pred = self.booster_model.predict(X_residual)
+        log_correction = self.booster_model.predict(X_residual)
+        ratio_multiplier = np.exp(log_correction)
 
-        final_pred = trend_pred * ratio_pred
+        final_pred = trend_pred * ratio_multiplier
 
         if len(final_pred) != input_len: logger.warning(f"Input length {input_len} differs from predicted data length {len(X)}!!")
 
