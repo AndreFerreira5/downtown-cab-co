@@ -25,8 +25,8 @@ from collections import deque
 configure_logging()
 logger = logging.getLogger(__name__)
 
-RMSE_WINDOW_SIZE = 100  # Number of predictions to track TODO CHANGE
-RMSE_THRESHOLD = 10.0   # RMSE threshold to trigger retraining TODO CHANGE
+RMSE_WINDOW_SIZE = 5  # Number of predictions to track TODO CHANGE
+RMSE_THRESHOLD = 0.1  # RMSE threshold to trigger retraining TODO CHANGE
 
 class TrendResidualModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
