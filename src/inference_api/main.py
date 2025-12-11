@@ -9,6 +9,7 @@ from pydantic import BaseModel
 import pandas as pd
 import pickle
 from .data.processer import preprocess_taxi_data
+from .data.downloader import load_validation_data_for_date
 import src.inference_api.data.processer as inference_processer
 import numpy as np
 from .logging_config import configure_logging
@@ -250,40 +251,6 @@ def validate_model():
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def load_validation_data_for_date(current_date):
-    """Load validation data from 2013 matching current month"""
-    # Match current month to 2013 file
-    month_num = current_date.month
-
-    # Path to your testing folder
-    testing_folder = "/testing"
-    file_pattern = f"yellow_tripdata_2013-{month_num:02d}.parquet"
-    file_path = os.path.join(testing_folder, file_pattern)
-
-    if not os.path.exists(file_path):
-        logger.warning(f"Validation file not found: {file_path}")
-        return None
-
-    try:
-        df = pd.read_parquet(file_path)
-
-        # Filter to same day of month or just take a sample
-        df['tpep_pickup_datetime'] = pd.to_datetime(df['tpep_pickup_datetime'])
-        day_of_month = current_date.day
-        matched = df[df['tpep_pickup_datetime'].dt.day == day_of_month].copy()
-
-        # If no exact day match, use random sample from the month
-        if len(matched) == 0:
-            matched = df.sample(n=min(1000, len(df))).copy()
-            logger.info(f"Using {len(matched)} samples from month {month_num}")
-        else:
-            logger.info(f"Found {len(matched)} trips for day {day_of_month} in month {month_num}")
-
-        return matched
-
-    except Exception as e:
-        logger.error(f"Error loading validation data: {e}")
-        return None
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=9001, reload=True)

@@ -197,8 +197,12 @@ jobs:
           MLFLOW_MODEL_NAME: ${{ secrets.MODEL_NAME }}
           MLFLOW_MODEL_ALIAS: ${{ secrets.MODEL_ALIAS }}
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI_EXTERNAL }}
+          MODEL_RETRAINING_TOKEN: ${{ secrets.MODEL_RETRAINING_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           export IMAGE_TAG=${{ github.sha }}
+          export MODEL_RETRAINING_TOKEN=${{ secrets.MODEL_RETRAINING_TOKEN }}
+          export GITHUB_REPOSITORY=${{ github.repository }}
           
           cp -f inference.compose.v1.yml ~/inference.compose.v1.yml
           cd ~
