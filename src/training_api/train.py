@@ -199,13 +199,17 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
         if processed_batch.empty: continue
 
-        trend_features = processed_batch[['date_int', 'sin_time', 'cos_time']]
+        dates = processed_batch['date_int'].values
+        sin_time = processed_batch['sin_time'].values
+        cos_time = processed_batch['cos_time'].values
+        actual = processed_batch['trip_duration'].values
+        trend_features = np.column_stack((dates, sin_time, cos_time))
+
         baseline_preds_full = regressor_model.predict(trend_features)
         baseline_preds_full = np.expm1(baseline_preds_full)  # inverse of log1p
         baseline_preds_full = np.maximum(baseline_preds_full, 1.0)
 
         # calculate error to identify hard cases
-        actual = processed_batch['trip_duration']
         # error metric, absolute percentage error
         error_ratio = np.abs(actual - baseline_preds_full) / baseline_preds_full
 
@@ -213,40 +217,39 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
         # hard mask, error bigger than 20%, keep them all
         mask_hard = error_ratio > 0.20
         # easy mask, error less than 20%, keep only 5% of them
-        random_mask = np.random.rand(len(processed_batch)) < 0.05
-        mask_easy = (~mask_hard) & random_mask
+        mask_random = np.random.choice([True, False], size=len(actual), p=[0.05, 0.95])
 
         # combine masks
-        final_mask = mask_hard | mask_easy
+        final_mask = mask_hard | mask_random
+        if not np.any(final_mask): continue
 
-        # apply mask to data and baseline
-        # this ensures X, y, and baseline are all perfectly aligned
-        training_chunk = processed_batch[final_mask].copy()
-        baseline_chunk = baseline_preds_full[final_mask]
+        valid_actual = actual[final_mask]
+        valid_baseline = baseline_preds_full[final_mask]
+        y_ratio_chunk = np.log1p(valid_actual) - np.log1p(valid_baseline)
 
-        if len(training_chunk) == 0: continue  # Skip if empty
+        # drop columns using a list comprehension or index selection on columns
+        feature_cols = [c for c in processed_batch.columns
+                        if c not in ['trip_duration', 'tpep_pickup_datetime', 'date_int']]
 
-        # calculate targets for the chunk only
-        # target = log(actual) - log(baseline)
-        y_ratio_chunk = np.log1p(training_chunk['trip_duration']) - np.log1p(baseline_chunk)
-        drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
-        X_residual_chunk = training_chunk.drop(columns=drop_cols, errors='ignore').select_dtypes(
-            include=['number', 'category'])
+        # subset the dataframe columns first, then .values, then mask
+        X_residual_chunk = processed_batch[feature_cols].values[final_mask]
+
 
         if booster is not None and (batch_count % 15 == 0):
             # Predict
             pred_log_ratio = booster.predict(X_residual_chunk)
             # Reconstruct
-            pred_final = baseline_chunk * np.exp(pred_log_ratio)
-            actual_chunk = training_chunk['trip_duration']
+            pred_final = valid_baseline * np.exp(pred_log_ratio)
 
             # Score
-            batch_rmse = np.sqrt(mean_squared_error(actual_chunk, pred_final))
-            batch_mae = mean_absolute_error(actual_chunk, pred_final)
+            diff = valid_actual - pred_final
+            batch_rmse = np.sqrt(np.mean(diff ** 2))
+            batch_mae = np.mean(np.abs(diff))
 
             # Log to MLflow
-            mlflow.log_metric("train_batch_rmse", batch_rmse, step=batch_count*batch_size)
-            mlflow.log_metric("train_batch_mae", batch_mae, step=batch_count*batch_size)
+            step_num = int(batch_count * batch_size)
+            mlflow.log_metric("train_batch_rmse", batch_rmse, step=step_num)
+            mlflow.log_metric("train_batch_mae", batch_mae, step=step_num)
 
             logger.info(f"Batch {batch_count}: RMSE={batch_rmse:.2f}, MAE={batch_mae:.2f}")
 
