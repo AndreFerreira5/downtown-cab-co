@@ -138,7 +138,7 @@ def train_ridge_regressor(batch_sampling_perc=0.075, random_state=42, batch_size
     return regressor
 
 
-def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, random_state=42, batch_size=1_000_000,
+def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.005, random_state=42, batch_size=5_000_000,
                    download_dataset=False):
     if not model_params:
         model_params = {
@@ -147,8 +147,9 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
             'boosting_type': 'gbdt',
             'force_col_wise': True,
             'learning_rate': 0.1,
-            'num_leaves': 127,
-            'min_data_in_leaf': 20,
+            'num_leaves': 255,
+            'max_bin': 63,
+            'min_data_in_leaf': 100,
             'feature_fraction': 0.8,
             'bagging_freq': 1,
             'bagging_fraction': 0.7,
@@ -193,77 +194,113 @@ def train_lightgbm(regressor_model, model_params, batch_sampling_perc=0.075, ran
     data_loader = DataLoader("training/", batch_size=batch_size, download_dataset=False)
     data_loader.reset()
     batch_count = 1
-    while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
-        #if len(batch) > 1000:
-        #    batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
-        processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
-        if processed_batch.empty: continue
 
-        dates = processed_batch['date_int'].values
-        sin_time = processed_batch['sin_time'].values
-        cos_time = processed_batch['cos_time'].values
-        actual = processed_batch['trip_duration'].values
-        trend_features = np.column_stack((dates, sin_time, cos_time))
+    if False: # new production training loop
+        while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+            #if len(batch) > 1000:
+            #    batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
+            processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
+            if processed_batch.empty: continue
 
-        baseline_preds_full = regressor_model.predict(trend_features)
-        baseline_preds_full = np.expm1(baseline_preds_full)  # inverse of log1p
-        baseline_preds_full = np.maximum(baseline_preds_full, 1.0)
+            dates = processed_batch['date_int'].values
+            sin_time = processed_batch['sin_time'].values
+            cos_time = processed_batch['cos_time'].values
+            actual = processed_batch['trip_duration'].values
+            trend_features = np.column_stack((dates, sin_time, cos_time))
 
-        # calculate error to identify hard cases
-        # error metric, absolute percentage error
-        error_ratio = np.abs(actual - baseline_preds_full) / baseline_preds_full
+            baseline_preds_full = regressor_model.predict(trend_features)
+            baseline_preds_full = np.expm1(baseline_preds_full)  # inverse of log1p
+            baseline_preds_full = np.maximum(baseline_preds_full, 1.0)
 
-        # create masks for smart sampling
-        # hard mask, error bigger than 20%, keep them all
-        mask_hard = error_ratio > 0.20
-        # easy mask, error less than 20%, keep only 5% of them
-        mask_random = np.random.choice([True, False], size=len(actual), p=[0.05, 0.95])
+            # calculate error to identify hard cases
+            # error metric, absolute percentage error
+            error_ratio = np.abs(actual - baseline_preds_full) / baseline_preds_full
 
-        # combine masks
-        final_mask = mask_hard | mask_random
-        if not np.any(final_mask): continue
+            # create masks for smart sampling
+            # hard mask, error bigger than 20%, keep them all
+            mask_hard = error_ratio > 0.20
+            # easy mask, error less than 20%, keep only 5% of them
+            mask_random = np.random.choice([True, False], size=len(actual), p=[0.05, 0.95])
 
-        valid_actual = actual[final_mask]
-        valid_baseline = baseline_preds_full[final_mask]
-        y_ratio_chunk = np.log1p(valid_actual) - np.log1p(valid_baseline)
+            # combine masks
+            final_mask = mask_hard | mask_random
+            if not np.any(final_mask): continue
 
-        # drop columns using a list comprehension or index selection on columns
-        feature_cols = [c for c in processed_batch.columns
-                        if c not in ['trip_duration', 'tpep_pickup_datetime', 'date_int']]
+            valid_actual = actual[final_mask]
+            valid_baseline = baseline_preds_full[final_mask]
+            y_ratio_chunk = np.log1p(valid_actual) - np.log1p(valid_baseline)
 
-        # subset the dataframe columns first, then .values, then mask
-        X_residual_chunk = processed_batch[feature_cols].values[final_mask]
+            # drop columns using a list comprehension or index selection on columns
+            feature_cols = [c for c in processed_batch.columns
+                            if c not in ['trip_duration', 'tpep_pickup_datetime', 'date_int']]
 
+            # subset the dataframe columns first, then .values, then mask
+            X_residual_chunk = processed_batch[feature_cols].values[final_mask]
 
-        if booster is not None and (batch_count % 15 == 0):
-            # Predict
-            pred_log_ratio = booster.predict(X_residual_chunk)
-            # Reconstruct
-            pred_final = valid_baseline * np.exp(pred_log_ratio)
+            if booster is not None and (batch_count % 15 == 0):
+                # Predict
+                pred_log_ratio = booster.predict(X_residual_chunk)
+                # Reconstruct
+                pred_final = valid_baseline * np.exp(pred_log_ratio)
 
-            # Score
-            diff = valid_actual - pred_final
-            batch_rmse = np.sqrt(np.mean(diff ** 2))
-            batch_mae = np.mean(np.abs(diff))
+                # Score
+                diff = valid_actual - pred_final
+                batch_rmse = np.sqrt(np.mean(diff ** 2))
+                batch_mae = np.mean(np.abs(diff))
 
-            # Log to MLflow
-            step_num = int(batch_count * batch_size)
-            mlflow.log_metric("train_batch_rmse", batch_rmse, step=step_num)
-            mlflow.log_metric("train_batch_mae", batch_mae, step=step_num)
+                # Log to MLflow
+                step_num = int(batch_count * batch_size)
+                mlflow.log_metric("train_batch_rmse", batch_rmse, step=step_num)
+                mlflow.log_metric("train_batch_mae", batch_mae, step=step_num)
 
-            logger.info(f"Batch {batch_count}: RMSE={batch_rmse:.2f}, MAE={batch_mae:.2f}")
+                logger.info(f"Batch {batch_count}: RMSE={batch_rmse:.2f}, MAE={batch_mae:.2f}")
 
-        train_set = lgb.Dataset(X_residual_chunk, y_ratio_chunk, free_raw_data=True)
+            train_set = lgb.Dataset(X_residual_chunk, y_ratio_chunk, free_raw_data=True)
 
-        booster = lgb.train(
-            model_params,
-            train_set,
-            num_boost_round=2,
-            init_model=booster,
-            keep_training_booster=True
-        )
+            booster = lgb.train(
+                model_params,
+                train_set,
+                num_boost_round=2,
+                init_model=booster,
+                keep_training_booster=True
+            )
 
-        batch_count += 1
+            batch_count += 1
+
+    else:
+        while (batch := data_loader.load_next_batch()) is not None and not batch.empty:
+            if len(batch) > 1000:
+                batch = batch.sample(frac=batch_sampling_perc, random_state=random_state)
+            processed_batch, _ = preprocess_taxi_data(batch, create_features=True)
+            trend_features = processed_batch[['date_int', 'sin_time', 'cos_time']]
+            baseline_preds = regressor_model.predict(trend_features)
+            baseline_preds = np.expm1(baseline_preds)  # inverse of log1p
+
+            # safety clamp, force baseline to be at least 1 second
+            baseline_preds = np.maximum(baseline_preds, 1.0)
+
+            # y_residual = processed_batch['trip_duration'] - baseline_preds
+            # y_ratio = processed_batch['trip_duration'] / baseline_preds
+            y_ratio = np.log1p(processed_batch['trip_duration']) - np.log1p(baseline_preds)
+            drop_cols = ['trip_duration', 'tpep_pickup_datetime', 'date_int']
+            X_residual = processed_batch.drop(columns=drop_cols, errors='ignore').select_dtypes(
+                include=['number', 'category'])
+
+            train_set = lgb.Dataset(X_residual, y_ratio, free_raw_data=True)
+
+            if booster is not None and (batch_count % 5 == 0):
+                try:
+                    logger.info(f"[{batch_count*batch_size} Processed Rows] Best Score {booster.best_score}")
+                except:
+                    logger.info(f"[{batch_count * batch_size} Processed Rows] Best Iteration {booster.best_iteration}")
+
+            booster = lgb.train(
+                model_params,
+                train_set,
+                num_boost_round=2,
+                init_model=booster,
+                keep_training_booster=True
+            )
 
     return booster
 
