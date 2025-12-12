@@ -49,7 +49,7 @@ jobs:
           
           docker stop training-container || true
           docker rm training-container || true
-          docker run -d \
+          docker run \
             -p 8080:8080 \
             --name training-container \
             --network mlops-net \
