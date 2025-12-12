@@ -448,7 +448,8 @@ def run_hyperparameter_tuning(commit_sha, model_name):
         booster = lgb.train(
             params,
             train_set,
-            num_boost_round=500,
+            #num_boost_round=500,
+            num_boost_round=20,
             valid_sets=[train_set, valid_set],
             valid_names=['train', 'valid'],
             callbacks=[
