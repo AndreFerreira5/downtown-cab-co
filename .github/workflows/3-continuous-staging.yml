@@ -1,0 +1,94 @@
+
+name: 3 - Continuous Staging & Model Promotion
+
+permissions: write-all
+
+on:
+  workflow_run:
+    workflows: ["2 - Continuous Delivery"]
+    types: [completed]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ vars.REGISTRY }}
+  MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+  MLFLOW_MODEL_NAME: ${{ vars.MLFLOW_MODEL_NAME }}
+
+jobs:
+  stage-tests:
+    # Run only if previous stage finished successfully
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - run: pip install uv
+
+      # Log in to GitHub Container Registry
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: docker pull ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:staging
+
+      - name: Start inference service with staging model
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_PASSWORD }}
+          MODEL_ALIAS: staging
+          MLFLOW_MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
+        run: |
+          docker run -d \
+            --name inference-api \
+            -p 9001:9001 \
+            -e MLFLOW_TRACKING_URI \
+            -e MLFLOW_TRACKING_USERNAME \
+            -e MLFLOW_TRACKING_PASSWORD \
+            -e MLFLOW_MODEL_ALIAS=$MODEL_ALIAS \
+            -e MLFLOW_MODEL_NAME \
+            ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:staging
+          
+          # Wait for service to be ready
+          for i in {1..30}; do
+            if curl -f http://localhost:9001/health | grep -q "healthy"; then
+              echo "Staging service healthy"
+              break
+            fi
+            sleep 2
+          done
+          # Fail if not healthy after retries
+          if ! curl -f http://localhost:9001/health | grep -q "healthy"; then
+            echo "Staging service failed to become healthy"
+            exit 1
+          fi
+
+      - name: Run E2E tests
+        run: uv run pytest tests/test_e2e/ -v
+
+      - name: Promote model to production
+        if: success()
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_PASSWORD }}
+          FROM_ALIAS: staging
+          TO_ALIAS: production
+        run: uv run python model-promotion/promote_model.py
+
+      - name: Push production container tag
+        if: success()
+        run: |
+          docker tag ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:staging \
+                     ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:production
+          docker push ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:production
+
+      - name: Stop inference service
+        if: always()
+        run: |
+          docker stop inference-api || true
+          docker rm inference-api || true
