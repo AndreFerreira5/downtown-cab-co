@@ -54,7 +54,18 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:staging
           
           # Wait for service to be ready
-          sleep 10
+          for i in {1..30}; do
+            if curl -f http://localhost:9001/health | grep -q "healthy"; then
+              echo "Staging service healthy"
+              break
+            fi
+            sleep 2
+          done
+          # Fail if not healthy after retries
+          if ! curl -f http://localhost:9001/health | grep -q "healthy"; then
+            echo "Staging service failed to become healthy"
+            exit 1
+          fi
 
       - name: Run E2E tests
         run: uv run pytest tests/test_e2e/ -v
@@ -81,38 +92,3 @@ jobs:
         run: |
           docker stop inference-api || true
           docker rm inference-api || true
-
-  deploy-to-production:
-    needs: stage-tests
-    if: success()
-    runs-on: inference
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Deploy production container
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          MODEL_ALIAS: production
-        run: |
-          docker pull ${{ env.REGISTRY }}/${{ github.repository }}/inference-api:production
-          docker compose -f inference.compose.v1.yml pull
-          docker compose -f inference.compose.v1.yml down --remove-orphans || true
-          docker compose -f inference.compose.v1.yml up -d
-
-      - name: Health check
-        run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:9001/health | grep -q "healthy"; then
-              echo "Production service healthy"
-              exit 0
-            fi
-            sleep 2
-          done
-          exit 1
