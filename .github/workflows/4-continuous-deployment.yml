@@ -1,0 +1,21 @@
+name: 4 - Continuous Deployment
+
+permissions: write-all
+
+
+on:
+  workflow_run:
+    workflows: ["3 - Continuous Staging & Model Promotion"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Reload Production Model
+        run: |
+          echo "Deploying to Production..."
+          # Reload model
+          curl -f -v -X GET "http://localhost:9001/reload"
