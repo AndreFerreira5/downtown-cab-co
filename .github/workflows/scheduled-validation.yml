@@ -1,0 +1,17 @@
+﻿name: Scheduled Model Validation
+run-name: "Daily Model Validation"
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run daily at 2 AM
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  validate:
+    runs-on: self-hosted
+
+    steps:
+      - name: Call validation endpoint
+        run: |
+          curl -X POST http://localhost:9001/validate \
+            -H "Content-Type: application/json"
