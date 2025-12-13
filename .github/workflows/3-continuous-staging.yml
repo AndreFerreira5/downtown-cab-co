@@ -81,7 +81,7 @@ jobs:
         if: success()
         env:
           MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI_EXTERNAL }}
-          MODEL_NAME: ${{ secrets.MODEL_NAME }}
+          MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
           FROM_ALIAS: staging
           TO_ALIAS: production
         run: uv run python model-promotion/promote_model.py
