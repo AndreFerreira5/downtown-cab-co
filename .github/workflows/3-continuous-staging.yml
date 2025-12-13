@@ -53,7 +53,7 @@ jobs:
           docker rm inference-api || true
           docker run -d \
             --name inference-api \
-            --network mlops-net \ 
+            --network mlops-net \
             -p 9001:9001 \
             -e MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI \
             -e MLFLOW_MODEL_ALIAS=$MODEL_ALIAS \
