@@ -46,17 +46,15 @@ jobs:
       - name: Start inference service with staging model
         env:
           MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_PASSWORD }}
-          MODEL_ALIAS: staging
           MLFLOW_MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
+          MODEL_ALIAS: staging
         run: |
           docker run -d \
             --name inference-api \
             -p 9001:9001 \
-            -e MLFLOW_TRACKING_URI \
+            -e MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI \
             -e MLFLOW_MODEL_ALIAS=$MODEL_ALIAS \
-            -e MLFLOW_MODEL_NAME \
+            -e MLFLOW_MODEL_NAME=$MLFLOW_MODEL_NAME \
             ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
           
           # Wait for service to be ready
