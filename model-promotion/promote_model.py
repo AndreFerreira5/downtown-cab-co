@@ -5,10 +5,10 @@ from mlflow.tracking import MlflowClient
 
 def main():
     client = MlflowClient(
-        tracking_uri=os.getenv("MLFLOW_TRACKING_URI"),
+        tracking_uri=os.getenv("MLFLOW_TRACKING_URI_EXTERNAL"),
     )
 
-    model_name = os.getenv("MLFLOW_MODEL_NAME")
+    model_name = os.getenv("MODEL_NAME")
     from_alias = os.getenv("FROM_ALIAS", "staging")
     to_alias = os.getenv("TO_ALIAS", "production")
 
