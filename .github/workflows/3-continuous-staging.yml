@@ -80,8 +80,8 @@ jobs:
       - name: Promote model to production
         if: success()
         env:
-          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI_EXTERNAL }}
-          MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
+          MLFLOW_TRACKING_URI: http://localhost:3030
+          MODEL_NAME: trend_residual_model
           FROM_ALIAS: staging
           TO_ALIAS: production
         run: uv run python model-promotion/promote_model.py
