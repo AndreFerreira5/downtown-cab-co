@@ -80,7 +80,7 @@ jobs:
       - name: Promote model to production
         if: success()
         env:
-          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI_EXTERNAL }}
           MODEL_NAME: ${{ secrets.MODEL_NAME }}
           FROM_ALIAS: staging
           TO_ALIAS: production

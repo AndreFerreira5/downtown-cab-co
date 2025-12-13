@@ -5,7 +5,7 @@ from mlflow.tracking import MlflowClient
 
 def main():
     client = MlflowClient(
-        tracking_uri=os.getenv("MLFLOW_TRACKING_URI_EXTERNAL"),
+        tracking_uri=os.getenv("MLFLOW_TRACKING_URI"),
     )
 
     model_name = os.getenv("MODEL_NAME")
