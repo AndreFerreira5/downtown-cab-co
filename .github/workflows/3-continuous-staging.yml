@@ -41,7 +41,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:staging
+      - run: docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
 
       - name: Start inference service with staging model
         env:
@@ -57,7 +57,7 @@ jobs:
             -e MLFLOW_TRACKING_URI \
             -e MLFLOW_MODEL_ALIAS=$MODEL_ALIAS \
             -e MLFLOW_MODEL_NAME \
-            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:staging
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
           
           # Wait for service to be ready
           for i in {1..30}; do
