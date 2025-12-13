@@ -49,6 +49,8 @@ jobs:
           MLFLOW_MODEL_NAME: ${{ env.MLFLOW_MODEL_NAME }}
           MODEL_ALIAS: staging
         run: |
+          docker stop inference-api || true
+          docker rm inference-api || true
           docker run -d \
             --name inference-api \
             -p 9001:9001 \
