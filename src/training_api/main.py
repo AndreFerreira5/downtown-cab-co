@@ -7,7 +7,7 @@ from .config import TrainingConfig
 from .logging_config import configure_logging
 import mlflow
 
-# configure logging globally
+# configure  logging globally
 configure_logging()
 logger = logging.getLogger(__name__)
 
