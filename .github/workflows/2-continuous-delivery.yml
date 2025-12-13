@@ -28,6 +28,31 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install DVC
+        run: pip install dvc dvc-gdrive
+
+      - name: Pull Data from DVC
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+        run: |
+          # Create credentials file
+          echo "$GDRIVE_CREDENTIALS_DATA" > dvc-gs-creds.json
+          
+          # Configure DVC
+          dvc remote modify storage gdrive_use_service_account true
+          dvc remote modify storage --local gdrive_service_account_json_file_path dvc-gs-creds.json
+          
+          # Pull data
+          dvc pull
+          
+          # Cleanup
+          rm dvc-gs-creds.json
+
       - name: Set lowercase image name
         id: image-name
         run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
@@ -53,6 +78,8 @@ jobs:
             -p 8080:8080 \
             --name training-container \
             --network mlops-net \
+            -v "$(pwd)/training:/app/training" \
+            -v "$(pwd)/testing:/app/testing" \
             -v "${HOST_DATA_PATH}:/mlflow" \
             -e COMMIT_SHA=${{ env.COMMIT_SHA }} \
             -e MLFLOW_TRACKING_URI=${{ env.MLFLOW_TRACKING_URI }} \
