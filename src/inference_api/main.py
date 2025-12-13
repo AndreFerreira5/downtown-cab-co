@@ -85,8 +85,7 @@ def load_model_into_app():
     logger.info(f"Connecting to MLflow at {inference_config.MLFLOW_URI}...")
     try:
         app.state.model = mlflow.pyfunc.load_model(
-            #model_uri=f"models:/{inference_config.MODEL_NAME}@{inference_config.MODEL_ALIAS}"
-            model_uri=f"models:/{inference_config.MODEL_NAME}@staging" # TODO this is just for prediction testing, remove it later and use the appropriate  aliases
+            model_uri=f"models:/{inference_config.MODEL_NAME}@{inference_config.MODEL_ALIAS}"
         )
         logger.info("Model loaded successfully.")
         return True
