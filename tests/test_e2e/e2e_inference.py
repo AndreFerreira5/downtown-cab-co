@@ -1,9 +1,6 @@
 import pytest
-import requests
 import pandas as pd
-import mlflow
-from src.inference_api.main import app
-from fastapi.testclient import TestClient
+import httpx
 
 
 class TestE2EInference:
@@ -12,7 +9,7 @@ class TestE2EInference:
     @pytest.fixture
     def client(self):
         """Test client using FastAPI's TestClient."""
-        return TestClient(app, base_url="http://localhost:9001")
+        return httpx.Client(base_url="http://localhost:9001")
 
     @pytest.fixture
     def sample_prediction_data(self):
