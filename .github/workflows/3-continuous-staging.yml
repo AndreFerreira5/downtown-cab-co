@@ -75,7 +75,7 @@ jobs:
           fi
 
       - name: Run E2E tests
-        run: uv run pytest -m tests/test_e2e/test_e2e_inference.py -v
+        run: uv run pytest tests/test_e2e/e2e_inference.py -v
 
       - name: Promote model to production
         if: success()
