@@ -51,7 +51,7 @@ jobs:
         run: |
           docker stop inference-api || true
           docker rm inference-api || true
-          docker run -d \
+          docker run \
             --name inference-api \
             -p 9001:9001 \
             -e MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI \
