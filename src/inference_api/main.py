@@ -17,7 +17,7 @@ import types
 import sys
 import time
 
-# configure logging globally
+# configure  logging globally
 configure_logging()
 logger = logging.getLogger(__name__)
 
