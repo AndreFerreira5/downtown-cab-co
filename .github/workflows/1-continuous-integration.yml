@@ -81,7 +81,9 @@ jobs:
           file: src/mlflow-server/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:${{ github.sha }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
 
   deploy-mlflow-container:
     runs-on: self-hosted
@@ -141,7 +143,9 @@ jobs:
           file: src/training_api/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ github.sha }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:latest
 
   build-inference-api-container:
     if: needs.check-changes.outputs.inference == 'true'
@@ -172,7 +176,9 @@ jobs:
           file: src/inference_api/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:${{ github.sha }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-inference-api:latest
 
   deploy-inference-api-container:
     runs-on: inference
