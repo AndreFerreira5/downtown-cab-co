@@ -19,7 +19,7 @@ class TestE2EInference:
         return {
             "data": [
                 {
-                    "tpep_pickup_datetime": "2013-01-01 00:00:00",
+                    "VendorID": 2,
                     "tpep_dropoff_datetime": "2013-01-01 00:20:00",
                     "passenger_count": 2,
                     "trip_distance": 3.5,
@@ -59,8 +59,8 @@ class TestE2EInference:
         batch_data = {
             "data": [
                 {
-                    "tpep_pickup_datetime": f"2013-01-01 {i:02d}:00:00",
-                    "tpep_dropoff_datetime": f"2013-01-01 {i: 02d}:20:00",
+                    "VendorID": i,
+                    "tpep_dropoff_datetime": f"2013-01-01 {i:02d}:20:00",
                     "passenger_count": i % 5 + 1,
                     "trip_distance": 2.0 + i * 0.5,
                     "PULocationID": 100 + i,
