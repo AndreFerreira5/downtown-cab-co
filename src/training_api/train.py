@@ -444,7 +444,7 @@ def run_hyperparameter_tuning(commit_sha, model_name):
         y_val_log_ratio = np.log1p(y_val_true) - np.log1p(val_trend)
         valid_set = lgb.Dataset(X_val, y_val_log_ratio, reference=train_set, free_raw_data=False)
 
-        # train (fast because data is in RAM)
+        # train  (fast because data is in RAM)
         booster = lgb.train(
             params,
             train_set,
