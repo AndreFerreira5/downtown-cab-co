@@ -95,7 +95,7 @@ jobs:
             ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-mlflow-server:latest
 
   deploy-mlflow-container:
-    runs-on: self-hosted
+    runs-on: mlflow
     needs: build-mlflow-container
     steps:
       - uses: actions/checkout@v5

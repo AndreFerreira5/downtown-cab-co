@@ -28,7 +28,7 @@ env:
 jobs:
   train-model:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted
+    runs-on: training
     timeout-minutes: 4320
 
     steps:
