@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Reason for retraining'
+        required: false
+        default: 'manual'
+        type: string
 
 env:
   DOCKER_REGISTRY: ghcr.io
