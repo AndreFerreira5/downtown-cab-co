@@ -92,7 +92,7 @@ class PredictRequest(BaseModel):
 
 def trigger_retraining_workflow():
     """Trigger GitHub Actions workflow for model retraining"""
-    github_token = os.getenv("GITHUB_TOKEN")
+    github_token = os.getenv("MODEL_RETRAINING_TOKEN")
     github_repo = os.getenv("GITHUB_REPOSITORY")
 
     if not github_token or not github_repo:
