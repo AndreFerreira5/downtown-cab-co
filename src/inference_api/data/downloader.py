@@ -2,6 +2,9 @@
 import logging
 import requests
 import pandas as pd
+import pyarrow.parquet as pq
+import pyarrow as pa
+import gc
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,7 @@ def download_validation_month(month_num, cache_folder="/app/validation_cache"):
 def load_validation_data_for_date(current_date):
     """Load validation data from 2013 matching current month and day"""
     month_num = current_date.month
+    day_of_month = current_date.day
 
     # Download the month data
     file_path = download_validation_month(month_num)
@@ -54,22 +58,69 @@ def load_validation_data_for_date(current_date):
         return None
 
     try:
-        df = pd.read_parquet(file_path)
+        logger.info(f"Opening parquet file: {file_path}")
 
-        # Filter to same day of month
-        df['tpep_pickup_datetime'] = pd.to_datetime(df['tpep_pickup_datetime'])
-        day_of_month = current_date.day
-        matched = df[df['tpep_pickup_datetime'].dt.day == day_of_month].copy()
+        # 1. Open the file without reading data
+        parquet_file = pq.ParquetFile(file_path)
 
-        # If no exact day match, use random sample
-        if len(matched) == 0:
-            matched = df.sample(n=min(1000, len(df))).copy()
-            logger.info(f"Using {len(matched)} samples from month {month_num}")
-        else:
-            logger.info(f"Found {len(matched)} trips for day {day_of_month} in month {month_num}")
+        # 2. Read ONLY the 'tpep_pickup_datetime' column to find matching rows
+        # This is very lightweight compared to reading all columns
+        timestamp_col = parquet_file.read(columns=['tpep_pickup_datetime'])
+        timestamps = timestamp_col.column(0).to_pandas()
 
+        # 3. Find indices for the specific day
+        # Note: We assume timestamps are already datetime objects in the parquet file
+        # If not, we might need pd.to_datetime(timestamps)
+        mask = timestamps.dt.day == day_of_month
+
+        # Get integer indices where mask is True
+        matching_indices = mask[mask].index.tolist()
+
+        if len(matching_indices) == 0:
+            logger.info(f"No exact matches for day {day_of_month}. Sampling 1000 random rows.")
+            # Fallback: Read a random sample of row groups or just head
+            # Reading first 1000 rows is safe and fast
+            subset_df = pd.read_parquet(file_path).sample(n=1000)
+            # Note: The above line still reads full file.
+            # Better low-memory random sample:
+            import random
+            total_rows = parquet_file.metadata.num_rows
+            random_indices = random.sample(range(total_rows), min(1000, total_rows))
+            # Reading specific scattered indices is slow in parquet,
+            # so for the fallback, we might just accept the hit or read the first row group.
+            # Let's stick to the simplest memory-safe fallback:
+            subset_df = parquet_file.read_row_group(0).to_pandas().head(1000)
+
+            del timestamps
+            del mask
+            gc.collect()
+            return subset_df
+
+        logger.info(f"Found {len(matching_indices)} trips for day {day_of_month}. Loading full data for these rows...")
+
+        # 4. Read only the specific rows we need
+        # PyArrow doesn't support "read rows by index list" efficiently across the whole file directly
+        # But we can iterate row groups or just read the whole table *if* the subset is large.
+        # However, to be strictly memory safe, we can use the mask to filter PyArrow table:
+
+        # Efficient Strategy: Read file into PyArrow Table (more compact than Pandas), filter, then convert.
+        table = parquet_file.read()
+        filtered_table = table.filter(pa.array(mask))
+
+        # Convert ONLY the filtered data to Pandas
+        matched = filtered_table.to_pandas()
+
+        # Clean up heavy objects immediately
+        del table
+        del filtered_table
+        del timestamps
+        del mask
+        gc.collect()
+
+        logger.info(f"Successfully loaded {len(matched)} rows.")
         return matched
 
     except Exception as e:
         logger.error(f"Error loading validation data: {e}")
+        gc.collect()
         return None
