@@ -8,10 +8,9 @@ on:
 
 jobs:
   validate:
-    runs-on: self-hosted
+    runs-on: inference
 
     steps:
       - name: Call validation endpoint
         run: |
-          curl -X POST http://localhost:9001/validate \
-            -H "Content-Type: application/json"
+          curl -X POST http://localhost:9001/validate
