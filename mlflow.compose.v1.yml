@@ -1,6 +1,6 @@
 services:
   mlflow:
-    image: ghcr.io/andreferreira5/downtown-cab-co-mlflow-server:${IMAGE_TAG:-production}
+    image: ghcr.io/andreferreira5/downtown-cab-co-mlflow-server:${IMAGE_TAG:-latest}
     container_name: mlflow
     restart: always
     environment:

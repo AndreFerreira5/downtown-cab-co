@@ -1,6 +1,6 @@
 services:
   inference_api:
-    image: ghcr.io/andreferreira5/downtown-cab-co-inference-api:${IMAGE_TAG:-production}
+    image: ghcr.io/andreferreira5/downtown-cab-co-inference-api:${IMAGE_TAG:-latest}
     container_name: inference-api
     restart: always
     environment:
