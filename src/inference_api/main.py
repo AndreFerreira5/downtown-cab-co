@@ -99,7 +99,7 @@ def trigger_retraining_workflow():
         logger.error("GitHub credentials not configured. Cannot trigger retraining.")
         return False
 
-    url = f"https://api.github.com/repos/{github_repo}/actions/workflows/2-continuous-delivery.yml/dispatches"
+    url = f"https://api.github.com/repos/{github_repo}/actions/workflows/1-continuous-integration.yml/dispatches"
 
     headers = {
         "Accept": "application/vnd.github.v3+json",
