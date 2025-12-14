@@ -222,6 +222,17 @@ def validate_model():
         if validation_data is None or len(validation_data) == 0:
             return {"message": "no_validation_data"}
 
+        # Calculate trip_duration if it's missing
+        if 'trip_duration' not in validation_data.columns:
+            logger.info("Calculating trip_duration column...")
+            # Ensure datetime types
+            validation_data['tpep_pickup_datetime'] = pd.to_datetime(validation_data['tpep_pickup_datetime'])
+            validation_data['tpep_dropoff_datetime'] = pd.to_datetime(validation_data['tpep_dropoff_datetime'])
+
+            duration_seconds = (validation_data['tpep_dropoff_datetime'] - validation_data[
+                'tpep_pickup_datetime']).dt.total_seconds()
+            validation_data['trip_duration'] = duration_seconds
+
         # Prepare data for prediction (same format as training)
         y_true = validation_data['trip_duration'].values / 60
 
