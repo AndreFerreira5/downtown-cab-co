@@ -393,8 +393,8 @@ The Continuous Delivery workflow hydrates data before training:
     echo '${{ secrets.GDRIVE_CREDENTIALS_DATA }}' > credentials.json
     dvc remote modify gdrive --local gdrive_service_account_json_file_path credentials.json
 
-- name: Pull training data
-  run: dvc pull training.dvc
+- name: Pull training and testing data
+  run: dvc pull
 ```
 
 ---
