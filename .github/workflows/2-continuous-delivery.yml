@@ -71,8 +71,22 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull Training Image
+        id: pull-image
         run: |
-          docker pull ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ github.sha }}
+          FULL_IMAGE_NAME="${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training"
+          
+          if docker pull "$FULL_IMAGE_NAME:${{ github.sha }}"; then
+            echo "Successfully pulled SHA tag."
+            echo "USED_TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+          
+          elif docker pull "$FULL_IMAGE_NAME:latest"; then
+            echo "SHA tag failed. Successfully pulled 'latest' tag."
+            echo "USED_TAG=latest" >> $GITHUB_OUTPUT
+          
+          else
+            echo "Error: Could not pull SHA or latest tag."
+            exit 1
+          fi
 
       - name: Trigger Train
         run: |
@@ -91,4 +105,4 @@ jobs:
             -e MLFLOW_TRACKING_URI=${{ env.MLFLOW_TRACKING_URI }} \
             -e MLFLOW_EXPERIMENT_NAME=${{ env.MLFLOW_EXPERIMENT_NAME }} \
             -e MLFLOW_MODEL_NAME=${{ env.MLFLOW_MODEL_NAME }} \
-            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME }}-training:${{ steps.pull-image.outputs.USED_TAG }}
